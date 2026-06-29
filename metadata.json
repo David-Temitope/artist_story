@@ -1,0 +1,6 @@
+{
+  "name": "Artist Story",
+  "description": "An immersive music industry and artist simulation game where you build your career, create hit songs, release albums, go on tour, trade stocks/crypto, and compete for prestige awards.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
