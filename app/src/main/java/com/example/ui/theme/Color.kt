@@ -2,20 +2,23 @@ package com.example.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-val DarkBg = Color(0xFF0F0E17)
-val CardBg = Color(0xFF1D1B26)
-val NeonPurple = Color(0xFF9E00FF)
-val NeonPink = Color(0xFFFA2B5C)
-val NeonTeal = Color(0xFF00F0FF)
+val PrimaryPurple = Color(0xFF6C5CE7)
+val SecondarySalmon = Color(0xFFFD79A8)
+val BackgroundLight = Color(0xFFF8F9FE)
+val CardBackground = Color(0xFFFFFFFF)
 
-val TextPrimary = Color(0xFFFFFFFE)
-val TextSecondary = Color(0xFFA7A6B6)
+val TextPrimary = Color(0xFF2D3436)
+val TextSecondary = Color(0xFF636E72)
+val TextLight = Color(0xFFA2A2A2)
+
+val ProgressBg = Color(0xFFEBEDF0)
+val ProgressOrange = Color(0xFFFAB1A0)
+val ProgressGreen = Color(0xFF55EFC4)
 
 val Purple80 = Color(0xFFD280FF)
 val PurpleGrey80 = Color(0xFFE4BBFF)
 val Pink80 = Color(0xFFFF85A1)
 
-val Purple40 = Color(0xFF8A00E5)
+val Purple40 = Color(0xFF6C5CE7)
 val PurpleGrey40 = Color(0xFF7040A5)
-val Pink40 = Color(0xFFD51A46)
-
+val Pink40 = Color(0xFFFD79A8)
