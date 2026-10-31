@@ -10,7 +10,7 @@ android {
   compileSdk { version = release(36) { minorApiLevel = 1 } }
 
   defaultConfig {
-    applicationId = "com.aistudio.artiststory.nqtpmz"
+    applicationId = "com.genesis.app"
     minSdk = 24
     targetSdk = 36
     versionCode = 1
@@ -21,8 +21,8 @@ android {
 
   buildTypes {
     release {
-      isCrunchPngs = false
-      isMinifyEnabled = false
+      isMinifyEnabled = true
+      isShrinkResources = true
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
       val keystorePath = providers.environmentVariable("GENESIS_KEYSTORE_PATH").orNull
       val storePassword = providers.environmentVariable("GENESIS_STORE_PASSWORD").orNull

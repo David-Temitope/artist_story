@@ -26,7 +26,8 @@ class GenreTrendSimulatorTest {
     }
 
     @Test fun onlyTheActiveGenreGetsTheFullDemandMultiplier() {
-        val update = GenreTrendSimulator.advance(emptyMap(), 0, 0, genres, "afro", 6)
+        val initialMultipliers = mapOf("pop" to 1.55f, "rock" to 1f, "afro" to 1f, "jazz" to 1f)
+        val update = GenreTrendSimulator.advance(initialMultipliers, 1, 4, genres, "afro", 6)
         assertEquals(1.55f, update.multipliers.getValue("afro"), 0.001f)
         assertEquals(0.92f, update.multipliers.getValue("pop"), 0.001f)
         assertEquals(1f, update.multipliers.getValue("rock"), 0.001f)
