@@ -6388,7 +6388,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                     }
                     song.copy(weeklyStreams = adjustedStreams, totalStreams = song.totalStreams - song.weeklyStreams + adjustedStreams)
                 }
-            }
+            }.toMutableList()
 
             // Sort by weekly streams to generate leaderboard
             simulatedSoundstreamSongsList.sortByDescending { it.weeklyStreams }
