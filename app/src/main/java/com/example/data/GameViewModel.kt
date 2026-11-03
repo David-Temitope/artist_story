@@ -7114,6 +7114,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 stressUntreatedWeeks = updatedStressUntreatedWeeks,
                 stressTreatedConsecutiveWeeks = updatedStressTreatedConsecutiveWeeks,
                 stressTreatedThisWeek = false,
+                restAndHobbyUsedThisWeek = false,
                 popularity = currentPopularity,
                 endorsedCandidateId = newEndorsedCandidateId,
                 politicalTaxModifier = newPoliticalTaxModifier,
@@ -8418,14 +8419,18 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
 
     fun hobbiesAndRest() {
         updateState { state ->
-            showToast("Spent time on personal hobbies and relaxing at home! Stress relieved.")
+            if (state.restAndHobbyUsedThisWeek) {
+                showToast("You have already engaged in rest & hobby this week! Wait for next week.")
+                return@updateState state
+            }
+            showToast("Spent time on personal hobbies and relaxing at home! Stress relieved (-25%).")
             state.copy(
-                stress = (state.stress - 20f).coerceAtLeast(0f),
+                stress = (state.stress - 25f).coerceAtLeast(0f),
                 burnout = (state.burnout - 10f).coerceAtLeast(0f),
                 creativeInspiration = (state.creativeInspiration + 20f).coerceAtMost(100f),
                 happiness = (state.happiness + 12f).coerceAtMost(100f),
-                energy = (state.energy + 25).coerceAtMost(state.maxEnergy),
-                stressTreatedThisWeek = true
+                stressTreatedThisWeek = true,
+                restAndHobbyUsedThisWeek = true
             )
         }
     }

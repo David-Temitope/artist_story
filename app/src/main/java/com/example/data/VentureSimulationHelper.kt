@@ -691,7 +691,10 @@ object VentureSimulationHelper {
     )
 
     val HOTEL_TIER_DETAILS = listOf(
-        HotelTierDetail(1, "Boutique Hotel", 500000.0, 0.0, 2, 20, 45.0, 500000.0, 0.010, "Boutique hospitality property with 2 initial suites, expandable up to 20 rooms with individual custom furnishings, dedicated staffing, and luxury amenities.")
+        HotelTierDetail(1, "Boutique Hotel", 500000.0, 0.0, 2, 20, 45.0, 500000.0, 0.010, "Boutique hospitality property with 2 initial suites, expandable up to 20 rooms with individual custom furnishings, dedicated staffing, and luxury amenities."),
+        HotelTierDetail(2, "Commercial Resort & Suites", 1200000.0, 700000.0, 10, 35, 95.0, 1800000.0, 0.012, "Full-scale commercial resort featuring mid-scale conference hosting, swimming facilities, and expanded guest suites."),
+        HotelTierDetail(3, "Luxury Grand Hotel", 3500000.0, 2300000.0, 20, 60, 180.0, 5500000.0, 0.015, "Elite metropolitan luxury hotel offering presidential sky penthouses, Michelin-grade culinary banquets, and premier guest lounges."),
+        HotelTierDetail(4, "International Hotel Chain", 10000000.0, 6500000.0, 40, 100, 320.0, 18000000.0, 0.018, "Flagship global hospitality brand presence with multi-wing high-capacity accommodations and worldwide guest prestige.")
     )
 
     const val HOTEL_ROOM_COST = 6000.0 // Unlock an additional room
@@ -1219,18 +1222,33 @@ object VentureSimulationHelper {
                 } else {
                     val currentTier = TAXI_DEPOT_TIERS.find { it.level == currentLevel.coerceIn(1, 4) } ?: TAXI_DEPOT_TIERS.first()
                     val nextTier = TAXI_DEPOT_TIERS.find { it.level == currentLevel + 1 }
-                    VentureUpgradeInfo(
-                        title = "Expand Facility: ${nextTier!!.name}",
-                        description = "Acquire larger commercial staging space (${nextTier.description}). Expands fleet parking capacity from ${currentTier.maxCars} up to ${nextTier.maxCars} vehicles.",
-                        cost = nextTier.upgradeCost,
-                        currentWeeklyGross = venture.weeklyGrossRevenue,
-                        nextWeeklyGross = venture.weeklyGrossRevenue,
-                        currentWeeklyExpenses = venture.weeklyOperatingExpenses,
-                        nextWeeklyExpenses = venture.weeklyOperatingExpenses,
-                        currentNetProfit = venture.weeklyNetProfit,
-                        nextNetProfit = venture.weeklyNetProfit,
-                        isMaxed = false
-                    )
+                    if (nextTier != null) {
+                        VentureUpgradeInfo(
+                            title = "Expand Facility: ${nextTier.name}",
+                            description = "Acquire larger commercial staging space (${nextTier.description}). Expands fleet parking capacity from ${currentTier.maxCars} up to ${nextTier.maxCars} vehicles.",
+                            cost = nextTier.upgradeCost,
+                            currentWeeklyGross = venture.weeklyGrossRevenue,
+                            nextWeeklyGross = venture.weeklyGrossRevenue,
+                            currentWeeklyExpenses = venture.weeklyOperatingExpenses,
+                            nextWeeklyExpenses = venture.weeklyOperatingExpenses,
+                            currentNetProfit = venture.weeklyNetProfit,
+                            nextNetProfit = venture.weeklyNetProfit,
+                            isMaxed = false
+                        )
+                    } else {
+                        VentureUpgradeInfo(
+                            title = "Facility at Maximum Expansion",
+                            description = "Current fleet staging operates at peak regional terminal capacity.",
+                            cost = 0.0,
+                            currentWeeklyGross = venture.weeklyGrossRevenue,
+                            nextWeeklyGross = venture.weeklyGrossRevenue,
+                            currentWeeklyExpenses = venture.weeklyOperatingExpenses,
+                            nextWeeklyExpenses = venture.weeklyOperatingExpenses,
+                            currentNetProfit = venture.weeklyNetProfit,
+                            nextNetProfit = venture.weeklyNetProfit,
+                            isMaxed = true
+                        )
+                    }
                 }
             }
             "Hotel", "Hotel Chain" -> {
@@ -1251,22 +1269,37 @@ object VentureSimulationHelper {
                 } else {
                     val currentTier = HOTEL_TIER_DETAILS.find { it.tierLevel == venture.tierLevel } ?: HOTEL_TIER_DETAILS.first()
                     val nextTier = HOTEL_TIER_DETAILS.find { it.tierLevel == venture.tierLevel + 1 }
-                    val curGross = venture.weeklyGrossRevenue
-                    val nextGross = if (nextTier != null) nextTier.startingRooms * 7.0 * nextTier.baseNightlyRate * 0.70 else curGross
-                    val curExp = venture.weeklyOperatingExpenses
-                    val nextExp = if (nextTier != null) curExp * 1.5 else curExp
-                    VentureUpgradeInfo(
-                        title = "Upgrade to ${nextTier!!.tierName}",
-                        description = "${nextTier.description} (Max Room Capacity: ${nextTier.maxRooms} rooms. Base ADR: $${nextTier.baseNightlyRate.toInt()}/night. Property Value: $${String.format("%,.0f", nextTier.propertyValue)}).",
-                        cost = nextTier.upgradeCost,
-                        currentWeeklyGross = curGross,
-                        nextWeeklyGross = nextGross,
-                        currentWeeklyExpenses = curExp,
-                        nextWeeklyExpenses = nextExp,
-                        currentNetProfit = curGross - curExp,
-                        nextNetProfit = nextGross - nextExp,
-                        isMaxed = false
-                    )
+                    if (nextTier != null) {
+                        val curGross = venture.weeklyGrossRevenue
+                        val nextGross = nextTier.startingRooms * 7.0 * nextTier.baseNightlyRate * 0.70
+                        val curExp = venture.weeklyOperatingExpenses
+                        val nextExp = curExp * 1.5
+                        VentureUpgradeInfo(
+                            title = "Upgrade to ${nextTier.tierName}",
+                            description = "${nextTier.description} (Max Room Capacity: ${nextTier.maxRooms} rooms. Base ADR: $${nextTier.baseNightlyRate.toInt()}/night. Property Value: $${String.format("%,.0f", nextTier.propertyValue)}).",
+                            cost = nextTier.upgradeCost,
+                            currentWeeklyGross = curGross,
+                            nextWeeklyGross = nextGross,
+                            currentWeeklyExpenses = curExp,
+                            nextWeeklyExpenses = nextExp,
+                            currentNetProfit = curGross - curExp,
+                            nextNetProfit = nextGross - nextExp,
+                            isMaxed = false
+                        )
+                    } else {
+                        VentureUpgradeInfo(
+                            title = "Hotel at Maximum Tier (${currentTier.tierName})",
+                            description = "Operates as a premier hospitality establishment at max tier capacity.",
+                            cost = 0.0,
+                            currentWeeklyGross = venture.weeklyGrossRevenue,
+                            nextWeeklyGross = venture.weeklyGrossRevenue,
+                            currentWeeklyExpenses = venture.weeklyOperatingExpenses,
+                            nextWeeklyExpenses = venture.weeklyOperatingExpenses,
+                            currentNetProfit = venture.weeklyNetProfit,
+                            nextNetProfit = venture.weeklyNetProfit,
+                            isMaxed = true
+                        )
+                    }
                 }
             }
             "Restaurant" -> {
@@ -1288,22 +1321,37 @@ object VentureSimulationHelper {
                 } else {
                     val currentTier = RESTAURANT_TIER_DETAILS.find { it.tierLevel == venture.tierLevel } ?: RESTAURANT_TIER_DETAILS.first()
                     val nextTier = RESTAURANT_TIER_DETAILS.find { it.tierLevel == venture.tierLevel + 1 }
-                    val curGross = venture.weeklyGrossRevenue
-                    val nextGross = if (nextTier != null) (nextTier.minDailyRevenue + nextTier.maxDailyRevenue) / 2.0 * 7.0 else curGross
-                    val curExp = venture.weeklyOperatingExpenses
-                    val nextExp = if (nextTier != null) nextGross * 0.30 + (nextTier.minChefs * CHEF_WEEKLY_SALARY + nextTier.minWaiters * WAITER_WEEKLY_SALARY) + ((nextTier.propertyValue * nextTier.buildingMaintenanceMonthlyPercent) / 4.33) else curExp
-                    VentureUpgradeInfo(
-                        title = "Upgrade to ${nextTier!!.name}",
-                        description = "${nextTier.description} (Capacity: ${nextTier.minDailyCapacity}-${nextTier.maxDailyCapacity}/day. Expected Staff: ${nextTier.minChefs} chefs + ${nextTier.minWaiters} waiters).",
-                        cost = nextTier.upgradeCost,
-                        currentWeeklyGross = curGross,
-                        nextWeeklyGross = nextGross,
-                        currentWeeklyExpenses = curExp,
-                        nextWeeklyExpenses = nextExp,
-                        currentNetProfit = curGross - curExp,
-                        nextNetProfit = nextGross - nextExp,
-                        isMaxed = false
-                    )
+                    if (nextTier != null) {
+                        val curGross = venture.weeklyGrossRevenue
+                        val nextGross = (nextTier.minDailyRevenue + nextTier.maxDailyRevenue) / 2.0 * 7.0
+                        val curExp = venture.weeklyOperatingExpenses
+                        val nextExp = nextGross * 0.30 + (nextTier.minChefs * CHEF_WEEKLY_SALARY + nextTier.minWaiters * WAITER_WEEKLY_SALARY) + ((nextTier.propertyValue * nextTier.buildingMaintenanceMonthlyPercent) / 4.33)
+                        VentureUpgradeInfo(
+                            title = "Upgrade to ${nextTier.name}",
+                            description = "${nextTier.description} (Capacity: ${nextTier.minDailyCapacity}-${nextTier.maxDailyCapacity}/day. Expected Staff: ${nextTier.minChefs} chefs + ${nextTier.minWaiters} waiters).",
+                            cost = nextTier.upgradeCost,
+                            currentWeeklyGross = curGross,
+                            nextWeeklyGross = nextGross,
+                            currentWeeklyExpenses = curExp,
+                            nextWeeklyExpenses = nextExp,
+                            currentNetProfit = curGross - curExp,
+                            nextNetProfit = nextGross - nextExp,
+                            isMaxed = false
+                        )
+                    } else {
+                        VentureUpgradeInfo(
+                            title = "Restaurant at Maximum Tier (${currentTier.name})",
+                            description = "Operates at maximum restaurant culinary tier.",
+                            cost = 0.0,
+                            currentWeeklyGross = venture.weeklyGrossRevenue,
+                            nextWeeklyGross = venture.weeklyGrossRevenue,
+                            currentWeeklyExpenses = venture.weeklyOperatingExpenses,
+                            nextWeeklyExpenses = venture.weeklyOperatingExpenses,
+                            currentNetProfit = venture.weeklyNetProfit,
+                            nextNetProfit = venture.weeklyNetProfit,
+                            isMaxed = true
+                        )
+                    }
                 }
             }
             "Farming" -> {
@@ -1323,18 +1371,33 @@ object VentureSimulationHelper {
                 } else {
                     val currentTier = FARMING_TIERS.find { it.tierLevel == venture.tierLevel } ?: FARMING_TIERS.first()
                     val nextTier = FARMING_TIERS.find { it.tierLevel == venture.tierLevel + 1 }
-                    VentureUpgradeInfo(
-                        title = "Expand to ${nextTier!!.tierName}",
-                        description = nextTier.description,
-                        cost = nextTier.upgradeCost,
-                        currentWeeklyGross = currentTier.baseWeeklyGross,
-                        nextWeeklyGross = nextTier.baseWeeklyGross,
-                        currentWeeklyExpenses = currentTier.baseWeeklyExpenses,
-                        nextWeeklyExpenses = nextTier.baseWeeklyExpenses,
-                        currentNetProfit = currentTier.baseWeeklyGross - currentTier.baseWeeklyExpenses,
-                        nextNetProfit = nextTier.baseWeeklyGross - nextTier.baseWeeklyExpenses,
-                        isMaxed = false
-                    )
+                    if (nextTier != null) {
+                        VentureUpgradeInfo(
+                            title = "Expand to ${nextTier.tierName}",
+                            description = nextTier.description,
+                            cost = nextTier.upgradeCost,
+                            currentWeeklyGross = currentTier.baseWeeklyGross,
+                            nextWeeklyGross = nextTier.baseWeeklyGross,
+                            currentWeeklyExpenses = currentTier.baseWeeklyExpenses,
+                            nextWeeklyExpenses = nextTier.baseWeeklyExpenses,
+                            currentNetProfit = currentTier.baseWeeklyGross - currentTier.baseWeeklyExpenses,
+                            nextNetProfit = nextTier.baseWeeklyGross - nextTier.baseWeeklyExpenses,
+                            isMaxed = false
+                        )
+                    } else {
+                        VentureUpgradeInfo(
+                            title = "Farm at Maximum Tier (${currentTier.tierName})",
+                            description = "Agricultural land operations are developed to maximum regional acreage.",
+                            cost = 0.0,
+                            currentWeeklyGross = currentTier.baseWeeklyGross,
+                            nextWeeklyGross = currentTier.baseWeeklyGross,
+                            currentWeeklyExpenses = currentTier.baseWeeklyExpenses,
+                            nextWeeklyExpenses = currentTier.baseWeeklyExpenses,
+                            currentNetProfit = currentTier.baseWeeklyGross - currentTier.baseWeeklyExpenses,
+                            nextNetProfit = currentTier.baseWeeklyGross - currentTier.baseWeeklyExpenses,
+                            isMaxed = true
+                        )
+                    }
                 }
             }
             "Crypto Token" -> {
@@ -1342,8 +1405,8 @@ object VentureSimulationHelper {
                 val nextTier = CRYPTO_TOKEN_TIERS.find { it.tierLevel == venture.tierLevel + 1 }
                 val isMaxed = nextTier == null
                 VentureUpgradeInfo(
-                    title = if (isMaxed) "Network Sovereignty (${currentTier.tierName})" else "Upgrade to ${nextTier!!.tierName}",
-                    description = if (isMaxed) "Decentralized L2 network powering hundreds of thousands of daily creative web3 transactions." else nextTier!!.description,
+                    title = if (isMaxed) "Network Sovereignty (${currentTier.tierName})" else "Upgrade to ${nextTier?.tierName ?: currentTier.tierName}",
+                    description = if (isMaxed) "Decentralized L2 network powering hundreds of thousands of daily creative web3 transactions." else nextTier?.description ?: "",
                     cost = nextTier?.upgradeCost ?: 0.0,
                     currentWeeklyGross = currentTier.baseWeeklyGross,
                     nextWeeklyGross = nextTier?.baseWeeklyGross ?: currentTier.baseWeeklyGross,

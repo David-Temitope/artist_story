@@ -171,6 +171,7 @@ data class GameStateEntity(
     val stressUntreatedWeeks: Int = 0,
     val stressTreatedConsecutiveWeeks: Int = 0,
     val stressTreatedThisWeek: Boolean = false,
+    val restAndHobbyUsedThisWeek: Boolean = false,
     val timeSlots: Int = 10,
     val maxTimeSlots: Int = 10,
     val currentWeek: Int = 1,
