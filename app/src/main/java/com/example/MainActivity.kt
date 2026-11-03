@@ -1765,17 +1765,20 @@ fun DashboardPage(
                 burnout = state.burnout,
                 cash = state.cash,
                 onRestAndHobby = {
+                    val wasUsed = state.restAndHobbyUsedThisWeek
                     viewModel.hobbiesAndRest()
-                    viewModel.postActionFeedback(
-                        title = "Creative Hobby & Relaxation",
-                        subtitle = "Restored stamina · Mental clarity rejuvenated",
-                        deltas = listOf(
-                            StatFeedbackItem("Energy", "+40", true, "energy"),
-                            StatFeedbackItem("Stress", "-15%", true, "stress"),
-                            StatFeedbackItem("Inspiration", "+12%", true, "creative")
-                        ),
-                        iconType = "rest"
-                    )
+                    if (!wasUsed) {
+                        viewModel.postActionFeedback(
+                            title = "Creative Hobby & Relaxation",
+                            subtitle = "Mental decompression · Stress relief",
+                            deltas = listOf(
+                                StatFeedbackItem("Stress", "-25%", true, "stress"),
+                                StatFeedbackItem("Inspiration", "+20%", true, "creative"),
+                                StatFeedbackItem("Happiness", "+12%", true, "happiness")
+                            ),
+                            iconType = "rest"
+                        )
+                    }
                 },
                 onSeekTherapy = {
                     if (state.cash >= 1000.0) {

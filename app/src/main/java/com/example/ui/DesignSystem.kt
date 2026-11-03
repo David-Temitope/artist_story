@@ -1208,12 +1208,12 @@ fun ArtistWellbeingDashboard(
                             maxLines = 1
                         )
                         Text(
-                            text = "+Energy, -Stress",
+                            text = "-25% Stress",
                             style = MaterialTheme.typography.labelSmall,
                             color = SuccessColor
                         )
                         Text(
-                            text = "Free / 40 Stamina",
+                            text = "1x / week",
                             style = MaterialTheme.typography.labelSmall,
                             color = TextTertiary
                         )

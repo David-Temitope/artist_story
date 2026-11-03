@@ -39,7 +39,8 @@ abstract class AppDatabase : RoomDatabase() {
                 "purchasedEbooks" to "TEXT NOT NULL DEFAULT '[]'",
                 "stressUntreatedWeeks" to "INTEGER NOT NULL DEFAULT 0",
                 "stressTreatedConsecutiveWeeks" to "INTEGER NOT NULL DEFAULT 0",
-                "stressTreatedThisWeek" to "INTEGER NOT NULL DEFAULT 0"
+                "stressTreatedThisWeek" to "INTEGER NOT NULL DEFAULT 0",
+                "restAndHobbyUsedThisWeek" to "INTEGER NOT NULL DEFAULT 0"
             )
             val existing = mutableSetOf<String>()
             db.query("PRAGMA table_info(game_states)").use { cursor ->
