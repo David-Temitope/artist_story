@@ -19,3 +19,8 @@ debug.keystore
 
 /.gradle-user-test/
 release.keystore
+my-release-key.jks
+my-release-key.pem
+upload_certificate_pem.zip
+app_icon_1024x1024.png
+playstore_icon_512x512.png
