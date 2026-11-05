@@ -26,7 +26,8 @@ data class PoliticianProfile(
 data class CampaignPromise(
     val title: String,
     val description: String,
-    val mechanicalEffect: String // Summary of actual in-game world benefit
+    val mechanicalEffect: String, // Summary of actual in-game world benefit
+    val taxModifier: Float = 0.0f // Effect on political tax modifier (-0.05f to +0.05f)
 )
 
 @JsonClass(generateAdapter = true)
@@ -378,13 +379,35 @@ object PoliticsSimulationHelper {
     }
 
     private fun generateDynamicPromises(politician: PoliticianProfile, position: String, year: Int): List<CampaignPromise> {
+        // Dynamic tax goal changes every election based on year and politician ID
+        val taxShift = when ((year + politician.id.hashCode()).mod(3)) {
+            0 -> -0.04f // Tax cut: -4%
+            1 -> 0.04f  // Tax hike: +4% for public infrastructure
+            else -> 0.0f // Neutral tax
+        }
+        val taxPromise = when {
+            taxShift < 0f -> CampaignPromise(
+                title = "Tax Relief Initiative (Year $year)",
+                description = "Legislate a 4% state income tax cut for creators and small businesses.",
+                mechanicalEffect = "-4% State Tax Reduction on all revenues",
+                taxModifier = -0.04f
+            )
+            taxShift > 0f -> CampaignPromise(
+                title = "Civic Infrastructure & Public Works Levy (Year $year)",
+                description = "A modest 4% civic surtax to finance city roads, public studios, and festival grounds.",
+                mechanicalEffect = "+4% Civic Surtax on business earnings",
+                taxModifier = 0.04f
+            )
+            else -> CampaignPromise(
+                title = "Balanced Fiscal Stability Accord (Year $year)",
+                description = "Maintain stable tax brackets while eliminating loopholes for mega-labels.",
+                mechanicalEffect = "Stable tax rates with zero volatility",
+                taxModifier = 0.0f
+            )
+        }
         return when (politician.id) {
             "cand_sterling" -> listOf(
-                CampaignPromise(
-                    title = "Slashing Luxury Entertainment Tax",
-                    description = "Reduce state tax on high-earning entertainers from 12% to an unprecedented 6%.",
-                    mechanicalEffect = "-6% Weekly State Tax Relief on all earnings"
-                ),
+                taxPromise,
                 CampaignPromise(
                     title = "Commercial Venture Tax Abatements",
                     description = "Provide 15% operational expense write-offs for private enterprise owners.",
@@ -397,6 +420,7 @@ object PoliticsSimulationHelper {
                 )
             )
             "cand_vance" -> listOf(
+                taxPromise,
                 CampaignPromise(
                     title = "$50,000 State Creative Arts Subsidies",
                     description = "Direct cash grants distributed to active, high-integrity recording artists.",

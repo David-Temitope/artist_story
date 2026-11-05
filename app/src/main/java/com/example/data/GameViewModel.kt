@@ -6648,6 +6648,17 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 val winnerPolitician = winnerCandidate.politician
                 nextElectionWinnerId = winnerPolitician.id
                 nextElectionWinnerName = winnerPolitician.name
+                // Apply winning candidate's dynamic tax promise
+                val winningTaxMod = winnerCandidate.promises.firstOrNull { it.taxModifier != 0.0f }?.taxModifier ?: 0.0f
+                newPoliticalTaxModifier = winningTaxMod
+                if (winningTaxMod < 0.0f) {
+                    reportBuilder.append("📉 TAX POLICY: ${winnerPolitician.name} enacted their promised tax cut! Tax rates decreased by ${(-winningTaxMod * 100).toInt()}%!\n")
+                } else if (winningTaxMod > 0.0f) {
+                    reportBuilder.append("📈 TAX POLICY: ${winnerPolitician.name} enacted their promised public works levy. Tax rates increased by ${(winningTaxMod * 100).toInt()}% for civic development.\n")
+                } else {
+                    reportBuilder.append("⚖️ TAX POLICY: ${winnerPolitician.name} maintained balanced state fiscal tax policy.\n")
+                }
+
 
                 reportBuilder.append("🗳 OFFICIAL ELECTION RESULTS: ${winnerPolitician.name} (${winnerPolitician.party}) has won the election for $racePosition!\n")
 
@@ -7115,6 +7126,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 stressTreatedConsecutiveWeeks = updatedStressTreatedConsecutiveWeeks,
                 stressTreatedThisWeek = false,
                 restAndHobbyUsedThisWeek = false,
+                npcSpamCounts = emptyMap(),
                 popularity = currentPopularity,
                 endorsedCandidateId = newEndorsedCandidateId,
                 politicalTaxModifier = newPoliticalTaxModifier,
@@ -8956,6 +8968,16 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 showToast("Write a message before sending.")
                 return@updateState state
             }
+            // Check if blocked by NPC
+            if (state.blockedNpcIds.contains(npcId)) {
+                // If player is now famous (blowing up, popularity >= 70 or fans >= 250k), they unblock!
+                if (state.popularity >= 70f || state.fans >= 250000L) {
+                    showToast("${npc.name} unblocked you because your star status is blowing up!")
+                } else {
+                    showToast("⛔ You are blocked by ${npc.name}. They will not receive your messages.")
+                    return@updateState state
+                }
+            }
             val contactEnergyCost = PartnerRelationshipSimulation.energyCostForFirstContactThisWeek(
                 lastInteractionWeek = npc.lastInteractionWeek,
                 lastInteractionYear = npc.lastInteractionYear,
@@ -8973,6 +8995,15 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 message = normalizedMessage,
                 timestamp = System.currentTimeMillis()
             )
+
+
+            // Realistic spam mechanics
+            val currentSpam = (state.npcSpamCounts[npcId] ?: 0) + 1
+            val isSpamming = currentSpam >= 4
+            var finalBlocked = state.blockedNpcIds
+            if (state.blockedNpcIds.contains(npcId) && (state.popularity >= 70f || state.fans >= 250000L)) {
+                finalBlocked = finalBlocked - npcId
+            }
 
             val lowerText = normalizedMessage.lowercase()
             var addedCash = 0.0
@@ -9462,6 +9493,39 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                     )
                 )
                 showToast("Message sent to ${npc.name}.")
+            } else if (isSpamming) {
+                val spamWarningReply = when (currentSpam) {
+                    4 -> "Stop spamming me. I told you I'll reply when I'm free."
+                    5 -> "Send that again and I block you for real."
+                    else -> "That's it. You're blocked."
+                }
+                if (currentSpam >= 6) {
+                    finalBlocked = finalBlocked + npcId
+                    showToast("🚫 ${npc.name} blocked you for spamming!")
+                }
+                val spamMsg = ChatMessage(
+                    id = UUID.randomUUID().toString().take(6),
+                    senderId = npcId,
+                    senderName = npc.name,
+                    message = spamWarningReply,
+                    timestamp = System.currentTimeMillis()
+                )
+                if (existingIndex != -1) {
+                    val conv = conversations.removeAt(existingIndex)
+                    conversations.add(0, conv.copy(
+                        messages = conv.messages + listOf(playerMsg, spamMsg),
+                        unreadCount = if (isChatCurrentlyOpen) 0 else 1
+                    ))
+                } else {
+                    conversations.add(0,
+                        ChatConversation(
+                            npcId = npcId,
+                            npcName = npc.name,
+                            messages = listOf(playerMsg, spamMsg),
+                            unreadCount = if (isChatCurrentlyOpen) 0 else 1
+                        )
+                    )
+                }
             } else {
                 // NEVER (Left on read / ghosted)
                 if (existingIndex != -1) {
@@ -9517,6 +9581,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 publicImage = currentPublicImage,
                 trustworthiness = currentTrustworthiness,
                 activeFamilyReqStatus = currentStatus,
+                blockedNpcIds = finalBlocked,
+                npcSpamCounts = state.npcSpamCounts + (npcId to currentSpam),
                 capitalClubMembers = state.capitalClubMembers.map { member ->
                     if (member.id == npcId) {
                         val relationshipDelta = PartnerRelationshipSimulation.relationshipDeltaForWeek(
@@ -10311,6 +10377,39 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+        fun maintainFarmSilo(id: String) {
+        updateState { state ->
+            val venture = state.businessVentures.find { it.id == id } ?: return@updateState state
+            val cost = 500.0
+            if (state.cash < cost) {
+                showToast("Insufficient cash! Silo maintenance costs $${String.format("%,.0f", cost)}.")
+                return@updateState state
+            }
+            val updated = venture.copy(
+                totalExpensesPaid = venture.totalExpensesPaid + cost
+            ).copyFarm(
+                siloCondition = 1.0f
+            )
+            showToast("🛠️ Farm Silo fully maintained and sanitized to 100%! Produce is safe from spoilage.")
+            state.copy(
+                cash = state.cash - cost,
+                businessVentures = state.businessVentures.map { if (it.id == id) updated else it }
+            )
+        }
+    }
+
+    fun toggleSiloAutoSell(id: String) {
+        updateState { state ->
+            val venture = state.businessVentures.find { it.id == id } ?: return@updateState state
+            val nextState = !venture.siloAutoSell
+            val updated = venture.copyFarm(siloAutoSell = nextState)
+            showToast(if (nextState) "✓ Silo auto-sell enabled (70% sells weekly)." else "⏸️ Silo auto-sell paused.")
+            state.copy(
+                businessVentures = state.businessVentures.map { if (it.id == id) updated else it }
+            )
+        }
+    }
+
     fun sellFarmInventory(id: String, itemId: String, quantityToSell: Double) {
         updateState { state ->
             val venture = state.businessVentures.find { it.id == id } ?: return@updateState state
@@ -10343,9 +10442,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 farmWeeklyRawCropsRevenue = venture.farmWeeklyRawCropsRevenue + revenue
             )
             val driverBonusNotice = if (hasDriver) " (🚚 +15% Driver Freight Delivery Bonus)" else ""
-            showToast("💰 Sold ${actualQty.toInt()} ${item.unit} of ${item.name} for $${String.format("%,.0f", revenue)}$driverBonusNotice!")
+            showToast("💰 Sold ${actualQty.toInt()} ${item.unit} of ${item.name} for $${String.format("%,.0f", revenue)}$driverBonusNotice! Deposited into business treasury.")
             state.copy(
-                cash = state.cash + revenue,
                 businessVentures = state.businessVentures.map { if (it.id == id) updated else it }
             )
         }
@@ -10681,7 +10779,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     fun unlockHotelRoom(id: String, requestedRoomNumber: Int? = null) {
         updateState { state ->
             val venture = state.businessVentures.find { it.id == id } ?: return@updateState state
-            val currentRooms = if (venture.hotelRooms.isEmpty()) VentureSimulationHelper.getDefaultHotelRooms() else venture.hotelRooms
+            val maxCap = venture.hotelMaxRoomCapacity.coerceAtLeast(20)
+            val currentRooms = if (venture.hotelRooms.isEmpty()) VentureSimulationHelper.getDefaultHotelRooms(maxCap) else venture.hotelRooms
             val targetRoom = if (requestedRoomNumber != null) {
                 currentRooms.find { it.roomNumber == requestedRoomNumber }
             } else {
@@ -10689,7 +10788,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             }
 
             if (targetRoom == null || targetRoom.isUnlocked) {
-                showToast("All available rooms (up to 20) are already unlocked!")
+                showToast("All available rooms (up to $maxCap) are already unlocked!")
                 return@updateState state
             }
 
@@ -10740,7 +10839,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 showToast("Insufficient cash! ${item.name} costs $${String.format("%,.0f", item.cost)}.")
                 return@updateState state
             }
-            val currentRooms = if (venture.hotelRooms.isEmpty()) VentureSimulationHelper.getDefaultHotelRooms() else venture.hotelRooms
+            val maxCap = venture.hotelMaxRoomCapacity.coerceAtLeast(20)
+            val currentRooms = if (venture.hotelRooms.isEmpty()) VentureSimulationHelper.getDefaultHotelRooms(maxCap) else venture.hotelRooms
             val targetRoom = currentRooms.find { it.roomNumber == roomNumber }
             if (targetRoom == null || !targetRoom.isUnlocked) {
                 showToast("Room #$roomNumber must be unlocked before furnishing!")
@@ -10790,7 +10890,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 return@updateState state
             }
 
-            val currentRooms = if (venture.hotelRooms.isEmpty()) VentureSimulationHelper.getDefaultHotelRooms() else venture.hotelRooms
+            val maxCap = venture.hotelMaxRoomCapacity.coerceAtLeast(20)
+            val currentRooms = if (venture.hotelRooms.isEmpty()) VentureSimulationHelper.getDefaultHotelRooms(maxCap) else venture.hotelRooms
             val targetRoom = currentRooms.find { it.roomNumber == roomNumber }
             if (targetRoom == null || !targetRoom.isUnlocked) {
                 showToast("Room #$roomNumber must be unlocked before furnishing!")
@@ -10830,7 +10931,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 showToast("Insufficient cash! Emergency room repair costs $250.")
                 return@updateState state
             }
-            val currentRooms = if (venture.hotelRooms.isEmpty()) VentureSimulationHelper.getDefaultHotelRooms() else venture.hotelRooms
+            val maxCap = venture.hotelMaxRoomCapacity.coerceAtLeast(20)
+            val currentRooms = if (venture.hotelRooms.isEmpty()) VentureSimulationHelper.getDefaultHotelRooms(maxCap) else venture.hotelRooms
             val targetRoom = currentRooms.find { it.roomNumber == roomNumber }
             if (targetRoom == null) return@updateState state
 
@@ -13311,6 +13413,75 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+        fun writeLyric(title: String, content: String) {
+        updateState { state ->
+            if (state.writtenLyrics.size >= 10) {
+                showToast("Notes full! You can only store up to 10 lyrics. Delete one to make room.")
+                return@updateState state
+            }
+            if (state.energy < 3) {
+                showToast("Too exhausted to write lyrics (3 energy needed)! Rest first.")
+                return@updateState state
+            }
+            val cleanTitle = if (title.isBlank()) "Untitled Track #${state.writtenLyrics.size + 1}" else title.trim()
+            val cleanContent = if (content.isBlank()) "(Melodic verses & emotional chorus hooks)" else content.trim()
+
+            // Lyric rate depends on writing skill (1.0 to 5.0 stars)
+            val skillRatio = (state.writingSkill / 100f).coerceIn(0.2f, 1.0f)
+            val baseRating = 1.0f + (skillRatio * 4.0f)
+            val rating = (baseRating * 10).toInt() / 10f
+
+            val lyric = SongLyric(
+                id = UUID.randomUUID().toString().take(6),
+                title = cleanTitle,
+                content = cleanContent,
+                rating = rating
+            )
+            showToast("✍️ Wrote '$cleanTitle' (${rating}⭐ rating)! Stored in Notes.")
+            state.copy(
+                energy = (state.energy - 3).coerceAtLeast(0),
+                writtenLyrics = state.writtenLyrics + lyric,
+                writingSkill = (state.writingSkill + 0.5f).coerceAtMost(100f)
+            )
+        }
+    }
+
+    fun deleteLyric(id: String) {
+        updateState { state ->
+            val updated = state.writtenLyrics.filter { it.id != id }
+            showToast("Deleted lyric notebook entry.")
+            state.copy(writtenLyrics = updated)
+        }
+    }
+
+    fun recordLyricIntoStudio(lyricId: String) {
+        updateState { state ->
+            val lyric = state.writtenLyrics.find { it.id == lyricId } ?: return@updateState state
+            if (state.energy < 10) {
+                showToast("Recording studio session requires 10 energy! Rest first.")
+                return@updateState state
+            }
+            val genre = GameData.GENRES.first()
+            val songId = UUID.randomUUID().toString().take(6)
+            val newSong = Song(
+                id = songId,
+                title = lyric.title,
+                genreId = genre.id,
+                budget = 500.0,
+                producerId = null,
+                rating = lyric.rating,
+                songQuality = lyric.rating * 20f,
+                weekCreated = state.currentWeek,
+                yearCreated = state.currentYear
+            )
+            showToast("🎙️ Successfully recorded '${lyric.title}' (${lyric.rating}⭐) into Studio Singles catalog!")
+            state.copy(
+                energy = (state.energy - 10).coerceAtLeast(0),
+                songs = state.songs + newSong,
+                writtenLyrics = state.writtenLyrics.filter { it.id != lyricId }
+            )
+        }
+    }
     fun saveActiveNoteText(content: String) {
         updateState { state ->
             showToast("Saved notes to persistent ledger.")

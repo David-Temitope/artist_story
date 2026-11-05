@@ -1363,7 +1363,9 @@ data class VentureFarmState(
     val farmWeeklyMachineUpkeepExpense: Double = 0.0,
     val farmWeeklyPayrollExpense: Double = 350.0,
     val farmWeeklySeedExpense: Double = 0.0,
-    val farmLastWeatherEvent: String = "Optimal Sunshine (+15% Yield)"
+    val farmLastWeatherEvent: String = "Optimal Sunshine (+15% Yield)",
+    val siloCondition: Float = 1.0f,
+    val siloAutoSell: Boolean = true
 )
 
 @JsonClass(generateAdapter = true)
@@ -1579,6 +1581,8 @@ data class BusinessVenture(
     val farmWeeklyPayrollExpense: Double get() = farm.farmWeeklyPayrollExpense
     val farmWeeklySeedExpense: Double get() = farm.farmWeeklySeedExpense
     val farmLastWeatherEvent: String get() = farm.farmLastWeatherEvent
+    val siloCondition: Float get() = farm.siloCondition
+    val siloAutoSell: Boolean get() = farm.siloAutoSell
 
     // Hotel Getters
     val hotelRoomCount: Int get() = hotel.hotelRoomCount
@@ -1774,7 +1778,9 @@ data class BusinessVenture(
         farmWeeklyMachineUpkeepExpense: Double = farm.farmWeeklyMachineUpkeepExpense,
         farmWeeklyPayrollExpense: Double = farm.farmWeeklyPayrollExpense,
         farmWeeklySeedExpense: Double = farm.farmWeeklySeedExpense,
-        farmLastWeatherEvent: String = farm.farmLastWeatherEvent
+        farmLastWeatherEvent: String = farm.farmLastWeatherEvent,
+        siloCondition: Float = farm.siloCondition,
+        siloAutoSell: Boolean = farm.siloAutoSell
     ): BusinessVenture = copy(farm = farm.copy(
         farmLandTier = farmLandTier,
         farmLandIsOwned = farmLandIsOwned,
@@ -1801,7 +1807,9 @@ data class BusinessVenture(
         farmWeeklyMachineUpkeepExpense = farmWeeklyMachineUpkeepExpense,
         farmWeeklyPayrollExpense = farmWeeklyPayrollExpense,
         farmWeeklySeedExpense = farmWeeklySeedExpense,
-        farmLastWeatherEvent = farmLastWeatherEvent
+        farmLastWeatherEvent = farmLastWeatherEvent,
+        siloCondition = siloCondition,
+        siloAutoSell = siloAutoSell
     ))
 
     fun copyHotel(
@@ -2057,3 +2065,13 @@ val GameStateEntity.playerLevel: Int
         val overallMastery = (skillRatio * 0.35f + reachRatio * 0.30f + catalogRatio * 0.15f + industryRatio * 0.20f).coerceIn(0.0f, 1.0f)
         return ((overallMastery * 9f).toInt() + 1).coerceIn(1, 10)
     }
+
+@JsonClass(generateAdapter = true)
+@androidx.annotation.Keep
+data class SongLyric(
+    val id: String,
+    val title: String,
+    val content: String,
+    val rating: Float, // 1.0 to 5.0 stars depending on writingSkill
+    val timestamp: Long = System.currentTimeMillis()
+)

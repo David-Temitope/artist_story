@@ -251,6 +251,8 @@ data class GameStateEntity(
     val brandDealRequiredEngagement: Long = 0,
     val brandDealPostedThisWeek: Boolean = false,
     val chatConversations: List<ChatConversation> = emptyList(),
+    val blockedNpcIds: List<String> = emptyList(),
+    val npcSpamCounts: Map<String, Int> = emptyMap(),
     val pendingChatReplies: List<PendingChatReply> = emptyList(),
     val castPosts: List<CastPost> = emptyList(),
     val castTrendingHashtags: List<String> = emptyList(),
@@ -276,6 +278,7 @@ data class GameStateEntity(
     val newsArticles: List<NewsArticle> = emptyList(),
     val weatherCondition: String = "Sunny",
     val activeNoteText: String = "",
+    val writtenLyrics: List<SongLyric> = emptyList(),
     val savedPhotos: List<String> = emptyList(),
     val scheduledActivities: List<String> = emptyList(),
     val economyCycle: String = "Stable Growth", // "Boom", "Stable Growth", "Inflation Peak", "Recession", "Depression"
@@ -472,6 +475,28 @@ data class GameStateEntity(
 }
 
 class Converters {
+    @TypeConverter
+    fun fromSongLyricList(value: List<SongLyric>?): String = try {
+        moshi.adapter<List<SongLyric>>(Types.newParameterizedType(List::class.java, SongLyric::class.java)).toJson(value ?: emptyList())
+    } catch (e: Throwable) { "[]" }
+
+    @TypeConverter
+    fun toSongLyricList(value: String?): List<SongLyric> = try {
+        if (value.isNullOrBlank() || value == "null") emptyList()
+        else moshi.adapter<List<SongLyric>>(Types.newParameterizedType(List::class.java, SongLyric::class.java)).fromJson(value) ?: emptyList()
+    } catch (e: Throwable) { emptyList() }
+
+    @TypeConverter
+    fun fromStringIntMap(value: Map<String, Int>?): String = try {
+        moshi.adapter<Map<String, Int>>(Types.newParameterizedType(Map::class.java, String::class.java, Int::class.javaObjectType)).toJson(value ?: emptyMap())
+    } catch (e: Throwable) { "{}" }
+
+    @TypeConverter
+    fun toStringIntMap(value: String?): Map<String, Int> = try {
+        if (value.isNullOrBlank() || value == "null") emptyMap()
+        else moshi.adapter<Map<String, Int>>(Types.newParameterizedType(Map::class.java, String::class.java, Int::class.javaObjectType)).fromJson(value) ?: emptyMap()
+    } catch (e: Throwable) { emptyMap() }
+
 
     private val moshi = Moshi.Builder().addLast(KotlinJsonAdapterFactory()).build()
 

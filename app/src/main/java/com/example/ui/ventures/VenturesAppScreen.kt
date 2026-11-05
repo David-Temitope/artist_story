@@ -2154,9 +2154,9 @@ private fun FarmingOperationsPanel(
 
         // Sub-tabs row
         val farmSubTabs = if (currentTier >= 4) {
-            listOf("Overview", "Land", "Crops", "Machines", "Livestock", "Processing", "Staff")
+            listOf("Overview", "Silo", "Land", "Crops", "Machines", "Livestock", "Processing", "Staff")
         } else {
-            listOf("Overview", "Land", "Crops", "Machines", "Livestock", "Staff")
+            listOf("Overview", "Silo", "Land", "Crops", "Machines", "Livestock", "Staff")
         }
 
         Row(
@@ -2185,6 +2185,96 @@ private fun FarmingOperationsPanel(
         }
 
         when (farmingSubTab) {
+            "Silo" -> {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFF1E2838)),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF38BDF8).copy(alpha = 0.5f)),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Icon(Icons.Default.Storage, contentDescription = null, tint = Color(0xFF38BDF8), modifier = Modifier.size(16.dp))
+                                    Text("CENTRAL FARM SILO & GRAIN ELEVATOR", color = TextWhite, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                }
+                                val siloPct = (venture.siloCondition * 100).toInt()
+                                val condColor = if (siloPct >= 85) Color(0xFF10B981) else if (siloPct >= 50) Color(0xFFFBBF24) else Color(0xFFEF4444)
+                                Text("$siloPct% Condition", color = condColor, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
+                            Text("Stores harvested crops, dairy, and farm produces. Requires weekly maintenance to prevent spoilage of raw products. Processed canned goods never spoil.", color = TextMuted, fontSize = 9.sp)
+
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Button(
+                                    onClick = { viewModel.maintainFarmSilo(venture.id) },
+                                    enabled = venture.siloCondition < 0.95f && playerCash >= 500.0,
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7)),
+                                    modifier = Modifier.weight(1f).height(30.dp),
+                                    contentPadding = PaddingValues(horizontal = 6.dp)
+                                ) {
+                                    Text(if (venture.siloCondition >= 0.95f) "Silo Sanitized ✓" else "Maintain Silo (00)", fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                }
+
+                                Button(
+                                    onClick = { viewModel.toggleSiloAutoSell(venture.id) },
+                                    colors = ButtonDefaults.buttonColors(containerColor = if (venture.siloAutoSell) Color(0xFF10B981) else Color(0xFF475569)),
+                                    modifier = Modifier.weight(1f).height(30.dp),
+                                    contentPadding = PaddingValues(horizontal = 6.dp)
+                                ) {
+                                    Text(if (venture.siloAutoSell) "Auto-Sell: 70% ON" else "Auto-Sell: OFF", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = if (venture.siloAutoSell) Color.Black else TextWhite)
+                                }
+                            }
+                        }
+                    }
+
+                    if (venture.farmInventory.isEmpty()) {
+                        Box(modifier = Modifier.fillMaxWidth().padding(vertical = 18.dp), contentAlignment = Alignment.Center) {
+                            Text("🌾 Silo is currently empty. Harvest mature crops or gather livestock products to store them here.", color = TextMuted, fontSize = 10.sp)
+                        }
+                    } else {
+                        Text("STORED INVENTORY & PRODUCE (${venture.farmInventory.size} types)", color = TextMuted, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                        venture.farmInventory.forEach { item ->
+                            Surface(
+                                color = Color(0xFF182234),
+                                shape = RoundedCornerShape(8.dp),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF2E3E5C)),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(10.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                            Text(item.name, color = TextWhite, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                            Surface(
+                                                color = if (item.category == "PROCESSED") Color(0xFF8B5CF6).copy(alpha = 0.2f) else Color(0xFF10B981).copy(alpha = 0.2f),
+                                                shape = RoundedCornerShape(4.dp)
+                                            ) {
+                                                Text(item.category, color = if (item.category == "PROCESSED") Color(0xFFC084FC) else Color(0xFF34D399), fontSize = 7.5.sp, modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp))
+                                            }
+                                        }
+                                        val totalValue = item.quantity * item.marketPricePerUnit
+                                        Text("${item.quantity.toInt()} ${item.unit} • Est. Value: $${String.format("%,.0f", totalValue)} ($${String.format("%,.0f", item.marketPricePerUnit)}/${item.unit})", color = TextMuted, fontSize = 9.sp)
+                                    }
+
+                                    Button(
+                                        onClick = { viewModel.sellFarmInventory(venture.id, item.id, item.quantity) },
+                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981)),
+                                        modifier = Modifier.height(28.dp),
+                                        contentPadding = PaddingValues(horizontal = 8.dp)
+                                    ) {
+                                        Text("Sell All", color = Color.Black, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             "Overview" -> {
                 // Overview metrics
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
@@ -2799,7 +2889,8 @@ private fun HotelOperationsPanel(
 
     val rooms = if (venture.hotelRooms.isEmpty()) VentureSimulationHelper.getDefaultHotelRooms() else venture.hotelRooms
     val unlockedRooms = rooms.filter { it.isUnlocked }
-    val effectiveRoomCount = unlockedRooms.size.coerceIn(2, 20)
+    val maxCapacity = venture.hotelMaxRoomCapacity.coerceAtLeast(20)
+    val effectiveRoomCount = unlockedRooms.size.coerceIn(2, maxCapacity)
 
     val cleanCapacity = (venture.hotelHousekeeperCount * 5.5).toInt().coerceAtLeast(1)
     val understaffedClean = cleanCapacity < effectiveRoomCount
@@ -2839,7 +2930,7 @@ private fun HotelOperationsPanel(
                     Text("HOTEL OPERATIONS & SUITES", color = Color(0xFF60A5FA), fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp)
                 }
                 Text(
-                    "${unlockedRooms.size}/20 Rooms Active",
+                    "${unlockedRooms.size}/$maxCapacity Rooms Active",
                     color = VentureGold,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold
@@ -2967,7 +3058,7 @@ private fun HotelOperationsPanel(
                         }
 
                         // Unlock Next Room Action if under 20
-                        val isMaxedRooms = unlockedRooms.size >= 20
+                        val isMaxedRooms = unlockedRooms.size >= maxCapacity
                         val roomCost = VentureSimulationHelper.HOTEL_ROOM_COST
                         if (!isMaxedRooms) {
                             val nextRoomNum = (unlockedRooms.maxOfOrNull { it.roomNumber } ?: 2) + 1
@@ -2986,7 +3077,7 @@ private fun HotelOperationsPanel(
                         }
 
                         // Rooms List (1 to 20)
-                        Text("ALL 20 HOTEL ROOMS (TAP TO FURNISH)", color = TextWhite, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        Text("ALL HOTEL ROOMS (TAP TO FURNISH)", color = TextWhite, fontSize = 10.sp, fontWeight = FontWeight.Bold)
 
                         rooms.forEach { room ->
                             val tierColor = when (room.roomTier) {
