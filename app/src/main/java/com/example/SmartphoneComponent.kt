@@ -225,11 +225,11 @@ fun SmartphoneOverlay(
                         .clip(phoneInnerClip)
                 ) {
                     // Wallpaper Gradient Layer
-                    val selectedImg = imageWallpapers.find { it.first == state.wallpaperId }
+                    val selectedImg = imageWallpapers.find { it.id == state.wallpaperId }
                     if (selectedImg != null) {
-                        AsyncImage(
-                            model = selectedImg.third,
-                            contentDescription = "Wallpaper",
+                        androidx.compose.foundation.Image(
+                            painter = androidx.compose.ui.res.painterResource(id = selectedImg.resId),
+                            contentDescription = selectedImg.name,
                             contentScale = ContentScale.Crop,
                             modifier = Modifier.fillMaxSize()
                         )
@@ -1108,7 +1108,6 @@ fun SmartphoneHomeScreenGrid(
                 AppConfig("tunes", "Tunes", Icons.Default.Audiotrack, Color(0xFFFFCC00), 0),
                 AppConfig("weshare", "WESHARE", Icons.Default.TrendingUp, Color(0xFF34C759), state.pendingStockOrders.size),
                 AppConfig("genesis", "Genesis", Icons.Default.MonetizationOn, Color(0xFFFF9500), state.pendingCryptoOrders.size),
-                AppConfig("ventures", "VENTURES", Icons.Default.BusinessCenter, Color(0xFF6200EA), 0),
                 AppConfig("politics", "Civic Hub", Icons.Default.HowToVote, Color(0xFF0284C7), if (state.isElectionSeason && !state.hasVotedInCurrentElection) 1 else 0),
                 AppConfig("bank", "Apex Bank", Icons.Default.Museum, Color(0xFF5856D6), bankAlertCount),
                 AppConfig("recruit", "Staff Hub", Icons.Default.AssignmentInd, Color(0xFF32ADE6), 0),
@@ -1138,7 +1137,6 @@ fun SmartphoneHomeScreenGrid(
                 AppConfig("tunes", "Tunes", Icons.Default.Radio, Color(0xFFFFD600), 0),
                 AppConfig("weshare", "WESHARE", Icons.Default.TrendingUp, Color(0xFF00E676), state.pendingStockOrders.size),
                 AppConfig("genesis", "Genesis", Icons.Default.MonetizationOn, Color(0xFFFF6D00), state.pendingCryptoOrders.size),
-                AppConfig("ventures", "VENTURES", Icons.Default.BusinessCenter, Color(0xFF6200EA), 0),
                 AppConfig("politics", "Civic Hub", Icons.Default.HowToVote, Color(0xFF0284C7), if (state.isElectionSeason && !state.hasVotedInCurrentElection) 1 else 0),
                 AppConfig("bank", "Apex Bank", Icons.Default.AccountBalance, Color(0xFF6200EA), bankAlertCount),
                 AppConfig("recruit", "Staff Hub", Icons.Default.SupervisedUserCircle, Color(0xFF00B0FF), 0),
@@ -1168,7 +1166,6 @@ fun SmartphoneHomeScreenGrid(
                 AppConfig("tunes", "Tunes", Icons.Default.Album, Color(0xFFFFAA00), 0),
                 AppConfig("weshare", "WESHARE", Icons.Default.TrendingUp, Color(0xFF00C853), state.pendingStockOrders.size),
                 AppConfig("genesis", "Genesis", Icons.Default.MonetizationOn, Color(0xFFFF9100), state.pendingCryptoOrders.size),
-                AppConfig("ventures", "VENTURES", Icons.Default.BusinessCenter, Color(0xFF6200EA), 0),
                 AppConfig("politics", "Civic Hub", Icons.Default.HowToVote, Color(0xFF0284C7), if (state.isElectionSeason && !state.hasVotedInCurrentElection) 1 else 0),
                 AppConfig("bank", "Apex Bank", Icons.Default.AccountBalance, Color(0xFF7C4DFF), bankAlertCount),
                 AppConfig("recruit", "Staff Hub", Icons.Default.Badge, Color(0xFF00E5FF), 0),
@@ -6358,17 +6355,17 @@ fun ProfessionalEmailScreen(state: GameStateEntity, viewModel: GameViewModel) {
 }
 
 // =================== 9. WALLPAPER SETTINGS SCREEN & HELP GUIDE ===================
+data class LocalWallpaper(val id: String, val name: String, val resId: Int)
+
 val imageWallpapers = listOf(
-    Triple("porsche", "Porsche 911", "https://images.unsplash.com/photo-1503376713356-1a6d902cb25c?q=80&w=1440&h=2560&fit=crop"),
-    Triple("spiderman", "Hero", "https://images.unsplash.com/photo-1612036782180-6f0b6cd846fe?q=80&w=1440&h=2560&fit=crop"),
-    Triple("mountain", "Mountain Sunset", "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=1440&h=2560&fit=crop"),
-    Triple("mustang", "Mustang GT", "https://images.unsplash.com/photo-1584345604476-8ec5e12e42a5?q=80&w=1440&h=2560&fit=crop"),
-    Triple("hyper_blue", "Hyper Blue", "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1440&h=2560&fit=crop"),
-    Triple("hyper_red", "Hyper Red", "https://images.unsplash.com/photo-1618005192384-a83a8bd57fbe?q=80&w=1440&h=2560&fit=crop"),
-    Triple("cyberpunk", "Neon City", "https://images.unsplash.com/photo-1515462277126-2dd0c162007a?q=80&w=1440&h=2560&fit=crop"),
-    Triple("nature", "Forest Mist", "https://images.unsplash.com/photo-1448375240586-882707db888b?q=80&w=1440&h=2560&fit=crop"),
-    Triple("space", "Deep Space", "https://images.unsplash.com/photo-1462331940025-496dfbfc7564?q=80&w=1440&h=2560&fit=crop"),
-    Triple("minimal", "Dark Minimal", "https://images.unsplash.com/photo-1494438639946-1ebd1d20bf85?q=80&w=1440&h=2560&fit=crop")
+    LocalWallpaper("neon_abstract", "Neon Horizon", R.drawable.img_cover_abstract_neon_1788176890098),
+    LocalWallpaper("cosmic_space", "Deep Cosmic", R.drawable.img_cover_abstract_cosmic_1788176904087),
+    LocalWallpaper("city_rooftop", "Metropolis Night", R.drawable.cast_rooftop_night_1788205863239),
+    LocalWallpaper("luxury_street", "Golden Boulevard", R.drawable.cast_street_luxury_1788205929331),
+    LocalWallpaper("synth_studio", "Cyber Synth Lab", R.drawable.cast_studio_synth_1788205895230),
+    LocalWallpaper("acoustic_lounge", "Acoustic Sanctuary", R.drawable.cast_acoustic_room_1788205880418),
+    LocalWallpaper("dance_practice", "Rhythm Studio", R.drawable.cast_dance_practice_1788205912115),
+    LocalWallpaper("radio_station", "Broadcast Room", R.drawable.cast_radio_studio_1788205951087)
 )
 
 @Composable
@@ -6389,29 +6386,29 @@ fun WallpaperSettingsScreen(state: GameStateEntity, viewModel: GameViewModel) {
     ) {
         Text(text = "Ecosystem Wallpaper Theme", color = Color.White, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
 
-        imageWallpapers.forEach { (id, name, url) ->
-            val isCurrent = state.wallpaperId == id
+        imageWallpapers.forEach { wp ->
+            val isCurrent = state.wallpaperId == wp.id
             Card(
                 colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1C29)),
                 border = BorderStroke(2.dp, if (isCurrent) NeonTeal else Color.Transparent),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { viewModel.updateWallpaper(id) }
+                    .clickable { viewModel.updateWallpaper(wp.id) }
             ) {
                 Row(
                     modifier = Modifier.padding(12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    AsyncImage(
-                        model = url,
-                        contentDescription = name,
+                    androidx.compose.foundation.Image(
+                        painter = androidx.compose.ui.res.painterResource(id = wp.resId),
+                        contentDescription = wp.name,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier
                             .size(48.dp)
                             .clip(RoundedCornerShape(8.dp))
                     )
                     Spacer(modifier = Modifier.width(16.dp))
-                    Text(text = name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    Text(text = wp.name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                 }
             }
         }
@@ -8009,42 +8006,210 @@ fun RealCameraAppUI(state: GameStateEntity, viewModel: GameViewModel) {
 // =================== 14. NOTES PAD SCREEN ===================
 @Composable
 fun NotesAppScreen(state: GameStateEntity, viewModel: GameViewModel) {
+    var selectedTab by remember { mutableStateOf(0) } // 0: Song Lyrics, 1: Scratchpad
     var noteInputText by remember { mutableStateOf(state.activeNoteText) }
+    var showWriteLyricDialog by remember { mutableStateOf(false) }
+    var newLyricTitle by remember { mutableStateOf("") }
+    var newLyricContent by remember { mutableStateOf("") }
 
-    Column(modifier = Modifier.fillMaxSize().background(Color(0xFF1A1A10)).padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Text("Songwriting Pad & Notebook", color = Color(0xFFFFEB3B), fontSize = 14.sp, fontWeight = FontWeight.Bold)
-            Button(
-                onClick = {
-                    viewModel.saveActiveNoteText(noteInputText)
-                    viewModel.showToast("Saved notes to persistent ledger.")
-                },
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFEB3B)),
-                modifier = Modifier.height(28.dp)
-            ) {
-                Text("SAVE", color = Color.Black, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFF141414))
+            .padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        // Top Bar
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Text("Notes & Songwriting Pad", color = Color(0xFFFFEB3B), fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text("${state.writtenLyrics.size}/10 Song Lyrics Saved • ${state.energy} Energy", color = Color.Gray, fontSize = 11.sp)
+            }
+            if (selectedTab == 0) {
+                Button(
+                    onClick = { showWriteLyricDialog = true },
+                    enabled = state.writtenLyrics.size < 10 && state.energy >= 3,
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFEB3B)),
+                    modifier = Modifier.height(32.dp)
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = null, tint = Color.Black, modifier = Modifier.size(14.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("WRITE (3⚡)", color = Color.Black, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                }
+            } else {
+                Button(
+                    onClick = {
+                        viewModel.saveActiveNoteText(noteInputText)
+                        viewModel.showToast("Saved notes to persistent ledger.")
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFEB3B)),
+                    modifier = Modifier.height(32.dp)
+                ) {
+                    Text("SAVE", color = Color.Black, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                }
             }
         }
 
-        Card(
-            colors = CardDefaults.cardColors(containerColor = Color(0xFFFFFEF0)),
-            border = BorderStroke(1.dp, Color(0xFFFFEB3B)),
-            modifier = Modifier.weight(1f).fillMaxWidth()
-        ) {
-            TextField(
-                value = noteInputText,
-                onValueChange = { noteInputText = it },
-                textStyle = MaterialTheme.typography.bodyMedium.copy(color = Color.Black),
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = Color.Transparent,
-                    unfocusedContainerColor = Color.Transparent,
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent
-                ),
-                placeholder = { Text("Jot down song ideas, lyrics, budget goals, or tax strategies here...", color = Color.Gray, fontSize = 12.sp) },
-                modifier = Modifier.fillMaxSize()
+        // Tabs
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilterChip(
+                selected = selectedTab == 0,
+                onClick = { selectedTab = 0 },
+                label = { Text("Song Lyrics (${state.writtenLyrics.size}/10)", fontSize = 12.sp) }
+            )
+            FilterChip(
+                selected = selectedTab == 1,
+                onClick = { selectedTab = 1 },
+                label = { Text("Scratchpad", fontSize = 12.sp) }
             )
         }
+
+        if (selectedTab == 0) {
+            // Lyrics list
+            if (state.writtenLyrics.isEmpty()) {
+                Box(
+                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(Icons.Default.MusicNote, contentDescription = null, tint = Color.DarkGray, modifier = Modifier.size(48.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text("No song lyrics written yet.", color = Color.Gray, fontSize = 14.sp)
+                        Text("Tap 'Write (3⚡)' to draft lyrics rated on your writing skill!", color = Color(0xFF888888), fontSize = 11.sp)
+                    }
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(state.writtenLyrics) { lyric ->
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E1E)),
+                            border = BorderStroke(1.dp, Color(0xFF333333)),
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(lyric.title, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Text("${lyric.rating} ⭐", color = Color(0xFFFFD700), fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Text("• Ready for Recording", color = Color(0xFF4CAF50), fontSize = 11.sp)
+                                        }
+                                    }
+                                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                        Button(
+                                            onClick = { viewModel.recordLyricIntoStudio(lyric.id) },
+                                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF9C27B0)),
+                                            modifier = Modifier.height(30.dp)
+                                        ) {
+                                            Icon(Icons.Default.Mic, contentDescription = null, tint = Color.White, modifier = Modifier.size(12.dp))
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text("RECORD (10⚡)", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                        }
+                                        OutlinedButton(
+                                            onClick = { viewModel.deleteLyric(lyric.id) },
+                                            border = BorderStroke(1.dp, Color.Red),
+                                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.Red),
+                                            modifier = Modifier.height(30.dp)
+                                        ) {
+                                            Text("DEL", fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+                                }
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text(
+                                    lyric.content,
+                                    color = Color(0xFFCCCCCC),
+                                    fontSize = 12.sp,
+                                    maxLines = 3,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        } else {
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFFFFEF0)),
+                border = BorderStroke(1.dp, Color(0xFFFFEB3B)),
+                modifier = Modifier.weight(1f).fillMaxWidth()
+            ) {
+                TextField(
+                    value = noteInputText,
+                    onValueChange = { noteInputText = it },
+                    textStyle = MaterialTheme.typography.bodyMedium.copy(color = Color.Black),
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent,
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent
+                    ),
+                    placeholder = { Text("Jot down song ideas, lyrics, budget goals, or tax strategies here...", color = Color.Gray, fontSize = 12.sp) },
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+        }
+    }
+
+    if (showWriteLyricDialog) {
+        AlertDialog(
+            onDismissRequest = { showWriteLyricDialog = false },
+            title = { Text("Write Song Lyrics (3 Energy)", fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        "Lyric rating is influenced by your Writing Skill (Current: ${state.writingSkill.toInt()}/100).",
+                        color = Color.Gray,
+                        fontSize = 11.sp
+                    )
+                    OutlinedTextField(
+                        value = newLyricTitle,
+                        onValueChange = { newLyricTitle = it },
+                        label = { Text("Song Title") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = newLyricContent,
+                        onValueChange = { newLyricContent = it },
+                        label = { Text("Lyrics / Chorus / Verses") },
+                        minLines = 3,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.writeLyric(newLyricTitle, newLyricContent)
+                        newLyricTitle = ""
+                        newLyricContent = ""
+                        showWriteLyricDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFEB3B))
+                ) {
+                    Text("Draft & Save", color = Color.Black, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showWriteLyricDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }
 

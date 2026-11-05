@@ -40,7 +40,10 @@ abstract class AppDatabase : RoomDatabase() {
                 "stressUntreatedWeeks" to "INTEGER NOT NULL DEFAULT 0",
                 "stressTreatedConsecutiveWeeks" to "INTEGER NOT NULL DEFAULT 0",
                 "stressTreatedThisWeek" to "INTEGER NOT NULL DEFAULT 0",
-                "restAndHobbyUsedThisWeek" to "INTEGER NOT NULL DEFAULT 0"
+                "restAndHobbyUsedThisWeek" to "INTEGER NOT NULL DEFAULT 0",
+                "blockedNpcIds" to "TEXT NOT NULL DEFAULT '[]'",
+                "npcSpamCounts" to "TEXT NOT NULL DEFAULT '{}'",
+                "writtenLyrics" to "TEXT NOT NULL DEFAULT '[]'"
             )
             val existing = mutableSetOf<String>()
             db.query("PRAGMA table_info(game_states)").use { cursor ->

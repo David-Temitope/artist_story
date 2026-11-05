@@ -795,11 +795,11 @@ object VentureSimulationHelper {
         FurnitureCatalogItem("Wi-Fi equipment", "Wi-Fi 7 Multi-Gigabit Fiber Node", 550.0, "Luxury", "Next-gen ultra-secure multi-gigabit private wireless hub.")
     )
 
-    fun getDefaultHotelRooms(): List<HotelRoom> {
+    fun getDefaultHotelRooms(maxRooms: Int = 20): List<HotelRoom> {
         val basicFurnishings = HOTEL_FURNITURE_CATALOG.filter { it.qualityTier == "Basic" }.map {
             HotelFurnitureItem(it.category, it.name, it.cost, it.qualityTier)
         }
-        return (1..20).map { roomNum ->
+        return (1..maxRooms.coerceAtLeast(20)).map { roomNum ->
             val isUnlocked = roomNum <= 2
             HotelRoom(
                 roomNumber = roomNum,
@@ -1457,6 +1457,25 @@ object VentureSimulationHelper {
                     val nextTier = HOTEL_TIER_DETAILS.find { it.tierLevel == venture.tierLevel + 1 } ?: return venture
                     val updatedAmenities = if (venture.hotelAmenities.isEmpty()) getDefaultHotelAmenities() else venture.hotelAmenities
                     val newRooms = venture.hotelRoomCount.coerceAtLeast(nextTier.startingRooms)
+                    val existingRooms = if (venture.hotelRooms.isEmpty()) getDefaultHotelRooms(nextTier.maxRooms) else venture.hotelRooms
+                    val expandedRooms = existingRooms.toMutableList()
+                    val basicFurnishings = HOTEL_FURNITURE_CATALOG.filter { it.qualityTier == "Basic" }.map {
+                        HotelFurnitureItem(it.category, it.name, it.cost, it.qualityTier)
+                    }
+                    while (expandedRooms.size < nextTier.maxRooms) {
+                        val num = expandedRooms.size + 1
+                        val isUnlocked = num <= nextTier.startingRooms
+                        expandedRooms.add(HotelRoom(
+                            roomNumber = num,
+                            isUnlocked = isUnlocked,
+                            condition = 1.0f,
+                            isOutOfOrder = false,
+                            furnishings = if (isUnlocked) basicFurnishings else emptyList(),
+                            weeklyOccupancyRate = if (isUnlocked) 0.65f else 0.0f,
+                            lodgesThisWeek = if (isUnlocked) 5 else 0,
+                            weeklyRevenue = if (isUnlocked) nextTier.baseNightlyRate * 7.0 * 0.65 else 0.0
+                        ))
+                    }
                     venture.copy(
                         tierLevel = nextTier.tierLevel,
                         tierName = "${nextTier.tierName} ($newRooms/${nextTier.maxRooms} Rooms)",
@@ -1466,7 +1485,8 @@ object VentureSimulationHelper {
                         hotelMaxRoomCapacity = nextTier.maxRooms,
                         hotelRoomCount = newRooms,
                         hotelNightlyRate = nextTier.baseNightlyRate,
-                        hotelAmenities = updatedAmenities
+                        hotelAmenities = updatedAmenities,
+                        hotelRooms = expandedRooms
                     )
                 }
             }
@@ -1796,6 +1816,7 @@ object VentureSimulationHelper {
             var farmPayrollExpense = venture.farmWeeklyPayrollExpense
             var seedExpense = venture.farmWeeklySeedExpense
             var weatherEvent = venture.farmLastWeatherEvent
+            var currentSiloCondition = venture.siloCondition
 
             // Hotel state tracking
             var hotelRoomRev = venture.hotelWeeklyRoomRevenue
@@ -2526,17 +2547,53 @@ object VentureSimulationHelper {
                 }
                 weeklyProcessedRevenue = processedRev
 
-                // 9. Cold Storage Spoilage Prevention
-                if (!hasColdStorage) {
+                // 9. Silo Condition, Spoilage & Weekly Auto-Sell Engine
+                val siloWeeklyMaint = 120.0
+                currentSiloCondition = (venture.siloCondition - 0.08f).coerceAtLeast(0.0f)
+
+                // Silo Spoilage: If silo condition drops below 0.85, unmaintained conditions cause spoilage of raw crops & livestock products
+                // Processed goods NEVER spoil!
+                if (currentSiloCondition < 0.85f && !hasColdStorage) {
+                    val spoilageRate = ((0.85f - currentSiloCondition) * 0.5f).coerceIn(0.05f, 0.40f)
                     for (i in invList.indices) {
                         val itm = invList[i]
-                        if (itm.category == "CROP" && itm.quantity > 50) {
-                            val spoiled = itm.quantity * 0.05
-                            invList[i] = itm.copy(quantity = itm.quantity - spoiled)
+                        if (itm.category != "PROCESSED" && itm.quantity > 5.0) {
+                            val spoiled = itm.quantity * spoilageRate
+                            invList[i] = itm.copy(quantity = (itm.quantity - spoiled).coerceAtLeast(0.0))
                         }
                     }
+                    logs.add("⚠️ ${venture.name}: Silo condition at ${(currentSiloCondition * 100).toInt()}% caused ${(spoilageRate * 100).toInt()}% produce spoilage! Maintain your silo or acquire Cold Storage.")
                 }
-                currentInventory = invList
+
+                // Auto-Sell Logic:
+                // Default: 70% of each crop and livestock product auto-sells every week.
+                // Exception: When venture reaches Tier 4 (Agri-Industrial Processing), auto-sell is paused so player can keep produce for processing, unless explicitly enabled.
+                val isAgriIndustry = venture.tierLevel >= 4
+                val shouldAutoSell = venture.siloAutoSell && (!isAgriIndustry || venture.farmMachinery.none { it.id.startsWith("mach_") || it.id == "proc_industrial" })
+                var autoSellRevenue = 0.0
+
+                if (shouldAutoSell) {
+                    for (i in invList.indices) {
+                        val itm = invList[i]
+                        if (itm.category == "CROP" || itm.category == "LIVESTOCK_PRODUCT") {
+                            if (itm.quantity >= 1.0) {
+                                val unitsToSell = itm.quantity * 0.70
+                                val effectivePrice = itm.marketPricePerUnit * (if (venture.farmDriverCount > 0) 1.15 else 1.0)
+                                val saleAmount = unitsToSell * effectivePrice
+                                autoSellRevenue += saleAmount
+                                invList[i] = itm.copy(quantity = itm.quantity - unitsToSell)
+                            }
+                        }
+                    }
+                    if (autoSellRevenue > 0.0) {
+                        weeklyRawCropsRevenue += autoSellRevenue
+                        logs.add("💰 ${venture.name}: Silo auto-sold 70% of available farm produce for $${String.format("%,.0f", autoSellRevenue)}!")
+                    }
+                } else if (isAgriIndustry) {
+                    logs.add("🏭 ${venture.name}: Agri-Industrial processing active: Silo auto-sell paused to reserve raw materials for factory production.")
+                }
+
+                currentInventory = invList.filter { it.quantity > 0.01 }
 
                 var totalFarmGross = weeklyRawCropsRevenue + weeklyFruitsRevenue + weeklyLivestockRevenue + weeklyProcessedRevenue
 
@@ -3401,7 +3458,9 @@ object VentureSimulationHelper {
                 farmWeeklyPayrollExpense = farmPayrollExpense,
                 farmWeeklySeedExpense = seedExpense,
                 farmCleanliness = updatedFarmCleanliness,
-                farmLastWeatherEvent = weatherEvent
+                farmLastWeatherEvent = weatherEvent,
+                siloCondition = currentSiloCondition,
+                siloAutoSell = venture.siloAutoSell
             ).copyHotel(
                 hotelRoomCount = if (venture.type == "Hotel" || venture.type == "Hotel Chain") updatedHotelRooms.count { it.isUnlocked } else venture.hotelRoomCount,
                 hotelMaxRoomCapacity = if (venture.type == "Hotel" || venture.type == "Hotel Chain") 20 else venture.hotelMaxRoomCapacity,
