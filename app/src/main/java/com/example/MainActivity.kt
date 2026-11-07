@@ -1012,6 +1012,7 @@ fun DashboardPage(
 ) {
     var selectedDashboardTab by remember { mutableStateOf("Overview") }
     var showWeeklyTransitionDialog by remember { mutableStateOf(false) }
+    var showElectionWarningDialog by remember { mutableStateOf(false) }
     val overviewListState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
 
@@ -1045,6 +1046,44 @@ fun DashboardPage(
         }
     }
 
+        if (showElectionWarningDialog) {
+        AlertDialog(
+            onDismissRequest = { showElectionWarningDialog = false },
+            title = {
+                Text("🗳️ ELECTION WEEK WARNING", color = Color(0xFFF59E0B), fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            },
+            text = {
+                Text(
+                    "This is election week and you haven't voted yet, not voting will fine you $8000, are you sure you want to continue?",
+                    color = Color.White,
+                    fontSize = 13.sp
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showElectionWarningDialog = false
+                        viewModel.progressToNextWeek()
+                        CareerDilemmaController.maybeTriggerRandomDilemma(state)
+                        coroutineScope.launch {
+                            overviewListState.animateScrollToItem(0)
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444))
+                ) {
+                    Text("Continue & Incur $8,000 Fine", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                }
+            },
+            dismissButton = {
+                OutlinedButton(
+                    onClick = { showElectionWarningDialog = false }
+                ) {
+                    Text("Go Back", color = Color.White, fontSize = 11.sp)
+                }
+            }
+        )
+    }
+
     if (showWeeklyTransitionDialog) {
         WeeklyAdvanceSummaryDialog(
             currentWeek = state.currentWeek,
@@ -1062,11 +1101,15 @@ fun DashboardPage(
             headline = state.activeGlobalEvent?.let { "Global Trend: ${it.uppercase()}" } ?: weeklyReport.lines().firstOrNull() ?: "Industry executives are monitoring your releases.",
             onConfirmAdvance = {
                 showWeeklyTransitionDialog = false
-                viewModel.progressToNextWeek()
-                // Chance of triggering a living career dilemma upon advancing
-                CareerDilemmaController.maybeTriggerRandomDilemma(state)
-                coroutineScope.launch {
-                    overviewListState.animateScrollToItem(0)
+                val isElectionWeekNow = (state.currentWeek == 14 || state.currentWeek == 38 || state.isElectionWeek)
+                if (isElectionWeekNow && !state.hasVotedInCurrentElection) {
+                    showElectionWarningDialog = true
+                } else {
+                    viewModel.progressToNextWeek()
+                    CareerDilemmaController.maybeTriggerRandomDilemma(state)
+                    coroutineScope.launch {
+                        overviewListState.animateScrollToItem(0)
+                    }
                 }
             },
             onDismiss = {

@@ -2283,6 +2283,7 @@ fun MeTubeVideoScreen(state: GameStateEntity, viewModel: GameViewModel) {
     var publishType by remember { mutableStateOf("MUSIC_VIDEO") } // MUSIC_VIDEO, VLOG, LIVE_PERFORMANCE, INTERVIEW
     var publishCategory by remember { mutableStateOf("Music & Art") }
     var selectedThumbnailUri by remember { mutableStateOf<String?>(null) }
+    var selectedTargetSongId by remember { mutableStateOf<String?>(state.songs.firstOrNull()?.id) }
     var isUploading by remember { mutableStateOf(false) }
 
     // Native Photo Picker for device storage
@@ -3161,6 +3162,37 @@ fun MeTubeVideoScreen(state: GameStateEntity, viewModel: GameViewModel) {
                             }
                         }
 
+                                                if (publishType == "MUSIC_VIDEO" && state.songs.isNotEmpty()) {
+                            item {
+                                Column {
+                                    Text("Select Song for Music Video", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        items(state.songs) { song ->
+                                            val isSelSong = selectedTargetSongId == song.id
+                                            Surface(
+                                                onClick = {
+                                                    selectedTargetSongId = song.id
+                                                    publishTitle = "${song.title} (Official Music Video)"
+                                                },
+                                                shape = RoundedCornerShape(8.dp),
+                                                color = if (isSelSong) Color(0xFFFF0000) else Color(0xFF1E1E1E),
+                                                border = BorderStroke(1.dp, if (isSelSong) Color.Red else Color(0xFF333333))
+                                            ) {
+                                                Text(
+                                                    text = song.title,
+                                                    color = Color.White,
+                                                    fontSize = 11.sp,
+                                                    fontWeight = if (isSelSong) FontWeight.Bold else FontWeight.Normal,
+                                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
                         // Category Selector
                         item {
                             Column {
@@ -3228,7 +3260,8 @@ fun MeTubeVideoScreen(state: GameStateEntity, viewModel: GameViewModel) {
                                             title = publishTitle,
                                             type = publishType,
                                             customThumbnail = selectedThumbnailUri,
-                                            category = publishCategory
+                                            category = publishCategory,
+                                            targetSongId = if (publishType == "MUSIC_VIDEO") selectedTargetSongId else null
                                         )
                                         publishTitle = ""
                                         selectedThumbnailUri = null

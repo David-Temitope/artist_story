@@ -3615,6 +3615,13 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
 
         updateState { state ->
             val reportBuilder = java.lang.StringBuilder()
+            val isElectionWeekNow = (state.currentWeek == 14 || state.currentWeek == 38 || state.isElectionWeek)
+            var electionFine = 0.0
+            if (isElectionWeekNow && !state.hasVotedInCurrentElection) {
+                electionFine = 8000.0
+                reportBuilder.append("🗳️ ELECTION FINE: You did not vote during Election Week! An $8,000 fine was added to your government tax debt.\n")
+                showToast("🗳️ Incurred $8,000 fine for skipping election voting. Added to tax debt.")
+            }
             var newSavingsBalance = state.savingsBalance
             var updatedActivePhone = state.activePhone
             var updatedOwnedPhones = state.ownedPhones
@@ -4488,7 +4495,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 song.title.contains("The Royal Secretariat", ignoreCase = true)
             }
 
-            val updatedSongs = cleanCatalogSongs.map { originalSong ->
+            var updatedSongs = cleanCatalogSongs.map { originalSong ->
                 val song = if (!originalSong.isReleased) {
                     val weeklyCampaignLift = ReleaseCompetitionHelper.campaignHypeLift(originalSong.preReleaseCampaignPower, originalSong.initialHypeWeeksSet)
                     val grownHype = (originalSong.hype + weeklyCampaignLift).coerceIn(1f, 100f)
@@ -5112,6 +5119,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 initialIndustryRespect = currentIndustryRespect,
                 brandDealPostedEarlierThisWeek = brandDealPostedThisWeek
             )
+            if (workforceResult.updatedSongs.isNotEmpty()) { updatedSongs = workforceResult.updatedSongs }
 
             updatedCash = workforceResult.updatedCash
             newSavingsBalance = workforceResult.newSavingsBalance
@@ -6975,7 +6983,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                         stocks = finalStocks,
                         businessVentures = updatedVentures,
                         cryptos = finalCryptos,
-                        banking = state.banking.copy(savingsBalance = newSavingsBalance),
+                        banking = state.banking.copy(savingsBalance = newSavingsBalance, taxDebt = state.banking.taxDebt + electionFine),
                         wealth = state.wealth.copy(
                             emergencyFundBalance = updatedEmergencyFund,
                             payrollReserve = updatedPayrollReserve,
@@ -8868,7 +8876,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     // --- MeTube Platform ---
-    fun uploadMeTubeVideo(title: String, type: String, customThumbnail: String? = null, category: String = "Music & Art") {
+    fun uploadMeTubeVideo(title: String, type: String, customThumbnail: String? = null, category: String = "Music & Art", targetSongId: String? = null) {
         updateState { state ->
             if (state.energy < 15) {
                 showToast("Not enough energy to direct and edit a video! Requires 15 energy.")
@@ -8910,7 +8918,32 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             )
 
             val addedRevenue = if (state.meTubeSubscribers >= 1000L) initialViews * 0.0035 else 0.0
-            showToast("Successfully uploaded video in '${category}' category to MeTube!")
+
+            // If a song is linked, calculate boost with decay based on weeks since release
+            var updatedSongs = state.songs
+            if (targetSongId != null) {
+                val targetSong = state.songs.find { it.id == targetSongId }
+                if (targetSong != null) {
+                    val weeksElapsed = ((state.currentYear - targetSong.yearCreated) * 52 + (state.currentWeek - targetSong.weekCreated)).coerceAtLeast(0)
+                    // The more weeks elapsed after release, the less effect the video has
+                    val decayMultiplier = (1.0 - (weeksElapsed * 0.04)).coerceIn(0.12, 1.0)
+                    val streamBoost = (initialViews * 0.75 * decayMultiplier).toLong().coerceAtLeast(50L)
+                    val hypeBoost = (15f * decayMultiplier.toFloat()).coerceIn(2f, 20f)
+                    updatedSongs = state.songs.map { s ->
+                        if (s.id == targetSongId) {
+                            s.copy(
+                                totalStreams = s.totalStreams + streamBoost,
+                                hype = (s.hype + hypeBoost).coerceAtMost(100f)
+                            )
+                        } else s
+                    }
+                    showToast("Uploaded music video for '${targetSong.title}'! +${String.format("%,d", streamBoost)} streams (boost efficiency: ${(decayMultiplier * 100).toInt()}%).")
+                } else {
+                    showToast("Successfully uploaded video in '${category}' category to MeTube!")
+                }
+            } else {
+                showToast("Successfully uploaded video in '${category}' category to MeTube!")
+            }
 
             val updatedSpiritualJournal = state.spiritualJournal.filter { !it.startsWith("latest_metube_category_") && !it.startsWith("latest_cast_category_") }.toMutableList()
             updatedSpiritualJournal.add("latest_metube_category_$category")
@@ -8919,6 +8952,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             state.copy(
                 energy = state.energy - (if (state.activePhone == "Xiaomax") 8 else 15),
                 cash = state.cash - cost,
+                songs = updatedSongs,
                 meTubeVideos = state.meTubeVideos + newVideo,
                 signedLabelDeliveredMeTubeVideos = if (state.signedLabelId != null) state.signedLabelDeliveredMeTubeVideos + 1 else state.signedLabelDeliveredMeTubeVideos,
                 meTubeSubscribers = state.meTubeSubscribers + Random.nextInt(50, 300),
@@ -12807,7 +12841,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         val currentTrustworthiness: Float,
         val currentBusinessReputation: Float,
         val currentReliability: Float,
-        val employeesUnpaid: Boolean
+        val employeesUnpaid: Boolean,
+        val updatedSongs: List<Song> = emptyList()
     )
 
     private fun simulateEmployeeWorkforce(
@@ -12836,6 +12871,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         initialIndustryRespect: Float,
         brandDealPostedEarlierThisWeek: Boolean
     ): WorkforceSimulationResult {
+        var mutSongs = state.songs.toMutableList()
         var mutCash = initialCash
         var mutSavings = initialSavings
         var mutReserve = state.wealth.payrollReserve
@@ -13111,15 +13147,56 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 reportBuilder.append("📱 Social Media Manager: Published the required sponsored Cast post for ${state.activeBrandDealName}.\n")
             }
 
-            val vidType = if (state.smmPostCategory.contains("Music")) "MUSIC_VIDEO" else "VLOG"
+            val hasReleasedSongs = state.songs.isNotEmpty()
+            val effectiveCategory = if (state.smmPostCategory.contains("Music") && !hasReleasedSongs) {
+                // If player hasn't released any song yet, SMM posts another category
+                listOf("Vlog & Lifestyle", "Studio Behind The Scenes", "Gaming & Entertainment").random()
+            } else {
+                state.smmPostCategory
+            }
+
+            val isMusicVideo = effectiveCategory.contains("Music") && hasReleasedSongs
+            val vidType = if (isMusicVideo) "MUSIC_VIDEO" else "VLOG"
+
+            // SMM selects the player's most recent song if making a music video
+            val recentSong = if (isMusicVideo) state.songs.maxByOrNull { it.yearCreated * 52 + it.weekCreated } else null
+
+            val videoTitle = if (recentSong != null) {
+                "${state.artistName} - ${recentSong.title} (Official Visualizer)"
+            } else {
+                "${state.artistName} - $effectiveCategory Update"
+            }
+
+            val autoVidViews = (state.followers * 0.1).toLong().coerceAtLeast(100)
+
+            // Stream effect with decay: the more weeks after song release, the less effect
+            if (recentSong != null) {
+                val weeksElapsed = ((state.currentYear - recentSong.yearCreated) * 52 + (state.currentWeek - recentSong.weekCreated)).coerceAtLeast(0)
+                val decayMultiplier = (1.0 - (weeksElapsed * 0.04)).coerceIn(0.10, 1.0)
+                val songStreamsBoost = (autoVidViews * 0.70 * decayMultiplier).toLong().coerceAtLeast(20L)
+                val songHypeBoost = (10f * decayMultiplier.toFloat()).coerceIn(1f, 15f)
+
+                // Apply to recentSong
+                mutSongs = mutSongs.map { s ->
+                    if (s.id == recentSong.id) {
+                        s.copy(
+                            totalStreams = s.totalStreams + songStreamsBoost,
+                            hype = (s.hype + songHypeBoost).coerceAtMost(100f)
+                        )
+                    } else s
+                }.toMutableList()
+                reportBuilder.append("📱 Social Media Manager: Promoted '${recentSong.title}' with a music visualizer (+${String.format("%,d", songStreamsBoost)} streams, ${(decayMultiplier * 100).toInt()}% efficiency).\n")
+            }
+
             val autoVid = MeTubeVideo(
                 id = "vid_smm_" + java.util.UUID.randomUUID().toString().take(6),
-                title = "${state.artistName} - ${state.smmPostCategory} Update",
+                title = videoTitle,
                 type = vidType,
-                views = (state.followers * 0.1).toLong().coerceAtLeast(100),
+                views = autoVidViews,
                 likes = (state.followers * 0.02).toLong().coerceAtLeast(10),
                 weekPublished = state.currentWeek,
-                yearPublished = state.currentYear
+                yearPublished = state.currentYear,
+                thumbnailId = recentSong?.coverArt ?: "ic_video"
             )
             mutVideos.add(0, autoVid)
             reportBuilder.append("📱 Social Media Manager: Auto-posted to Cast & MeTube (${state.smmPostCategory}).\n")
@@ -13175,7 +13252,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             currentTrustworthiness = mutTrust,
             currentBusinessReputation = mutRep,
             currentReliability = mutRel,
-            employeesUnpaid = false
+            employeesUnpaid = false,
+            updatedSongs = mutSongs
         )
     }
 

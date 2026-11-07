@@ -1,5 +1,7 @@
 package com.example.ui.ventures
 
+import androidx.compose.foundation.BorderStroke
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -2488,10 +2490,72 @@ private fun FarmingOperationsPanel(
                     Spacer(modifier = Modifier.height(4.dp))
                     Text("PLANT NEW CROPS (Free Acres: ${freeAcres.toInt()} ac)", color = Color(0xFF38BDF8), fontSize = 10.sp, fontWeight = FontWeight.Bold)
 
+                    var customAcresSlider by remember { mutableStateOf(if (freeAcres >= 20.0) 20f else freeAcres.toFloat()) }
+                    var customAcresInput by remember { mutableStateOf("") }
+
+                    if (freeAcres >= 5.0) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Color(0xFF0F172A))
+                                .padding(10.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("Planting Acreage Slider:", color = Color(0xFF38BDF8), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                Text("${customAcresSlider.toInt()} Acres (of ${freeAcres.toInt()} free)", color = VentureGreen, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold)
+                            }
+                            Slider(
+                                value = customAcresSlider.coerceIn(1f, freeAcres.toFloat().coerceAtLeast(1f)),
+                                onValueChange = { customAcresSlider = it },
+                                valueRange = 1f..freeAcres.toFloat().coerceAtLeast(1f),
+                                steps = if (freeAcres.toInt() > 1) (freeAcres.toInt() - 2).coerceIn(0, 100) else 0,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                OutlinedTextField(
+                                    value = customAcresInput,
+                                    onValueChange = { txt ->
+                                        customAcresInput = txt.filter { it.isDigit() }
+                                        val num = customAcresInput.toFloatOrNull()
+                                        if (num != null) {
+                                            customAcresSlider = num.coerceIn(1f, freeAcres.toFloat().coerceAtLeast(1f))
+                                        }
+                                    },
+                                    placeholder = { Text("Or enter acres...", fontSize = 10.sp, color = TextMuted) },
+                                    modifier = Modifier.weight(1f).height(46.dp),
+                                    textStyle = MaterialTheme.typography.bodySmall.copy(color = TextWhite),
+                                    singleLine = true
+                                )
+                                listOf(10f, 25f, 50f, 100f).forEach { preset ->
+                                    if (preset <= freeAcres) {
+                                        Surface(
+                                            onClick = { customAcresSlider = preset },
+                                            color = Color(0xFF1E293B),
+                                            shape = RoundedCornerShape(6.dp),
+                                            border = BorderStroke(1.dp, Color(0xFF38BDF8))
+                                        ) {
+                                            Text("${preset.toInt()}ac", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 6.dp, vertical = 6.dp))
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     VentureSimulationHelper.CROPS_CATALOG.forEach { c ->
-                        val plantAcres = 5.0.coerceAtMost(freeAcres)
+                        val plantAcres = if (freeAcres >= 5.0) customAcresSlider.toDouble().coerceIn(1.0, freeAcres) else 5.0.coerceAtMost(freeAcres)
                         val cost = c.seedCostPerAcre * plantAcres
-                        val canPlant = freeAcres >= 1.0 && playerCash >= (c.seedCostPerAcre * 1.0)
+                        val canPlant = freeAcres >= 1.0 && playerCash >= cost
 
                         Row(
                             modifier = Modifier
@@ -2504,7 +2568,7 @@ private fun FarmingOperationsPanel(
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(c.name, color = TextWhite, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                                Text("Seeds: $${String.format("%,.0f", c.seedCostPerAcre)}/ac • Growth: ${c.growthWeeks} wks • Price: $${String.format("%.1f", c.marketPricePerUnit)}/${c.yieldUnitName}", color = TextMuted, fontSize = 9.sp)
+                                Text("Seeds: $${String.format("%,.0f", c.seedCostPerAcre)}/ac • Total: $${String.format("%,.0f", cost)}", color = TextMuted, fontSize = 9.sp)
                             }
                             Button(
                                 onClick = { viewModel.plantFarmCrop(venture.id, c.name, plantAcres.coerceAtLeast(1.0)) },
@@ -2513,7 +2577,7 @@ private fun FarmingOperationsPanel(
                                 modifier = Modifier.height(28.dp),
                                 contentPadding = PaddingValues(horizontal = 8.dp)
                             ) {
-                                Text("Plant ${plantAcres.toInt()} ac ($${String.format("%,.0f", cost)})", fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                Text("Plant ${plantAcres.toInt()} ac", fontSize = 9.sp, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
