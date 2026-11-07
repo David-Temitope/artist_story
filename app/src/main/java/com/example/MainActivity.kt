@@ -392,6 +392,7 @@ fun MainGameLayout(
     weeklyReport: String,
     viewModel: GameViewModel
 ) {
+    val context = LocalContext.current
     var selectedTab by remember { mutableStateOf("Dashboard") }
     var isPhoneOpen by remember { mutableStateOf(false) }
     var showEnergyDialog by remember { mutableStateOf(false) }
@@ -413,8 +414,12 @@ fun MainGameLayout(
             val hasUnreads = state.chatConversations.any { it.unreadCount > 0 }
             FloatingActionButton(
                 onClick = {
-                    viewModel.consumeEnergy(1)
-                    isPhoneOpen = true
+                    if (state.energy <= 0) {
+                        Toast.makeText(context, "Phone kept falling off your hands", Toast.LENGTH_SHORT).show()
+                    } else {
+                        viewModel.consumeEnergy(1)
+                        isPhoneOpen = true
+                    }
                 },
                 containerColor = PrimaryBrandColor,
                 contentColor = Color.White,
@@ -670,8 +675,12 @@ fun MainGameLayout(
                                     viewModel = viewModel,
                                     featureName = "Recording Studio Facilities",
                                     onOpenScc = {
-                                        viewModel.consumeEnergy(1)
-                                        isPhoneOpen = true
+                                        if (state.energy <= 0) {
+                                            Toast.makeText(context, "Phone kept falling off your hands", Toast.LENGTH_SHORT).show()
+                                        } else {
+                                            viewModel.consumeEnergy(1)
+                                            isPhoneOpen = true
+                                        }
                                     }
                                 )
                             } else {
@@ -685,8 +694,12 @@ fun MainGameLayout(
                                     viewModel = viewModel,
                                     featureName = "Concert Touring Operations",
                                     onOpenScc = {
-                                        viewModel.consumeEnergy(1)
-                                        isPhoneOpen = true
+                                        if (state.energy <= 0) {
+                                            Toast.makeText(context, "Phone kept falling off your hands", Toast.LENGTH_SHORT).show()
+                                        } else {
+                                            viewModel.consumeEnergy(1)
+                                            isPhoneOpen = true
+                                        }
                                     }
                                 )
                             } else {

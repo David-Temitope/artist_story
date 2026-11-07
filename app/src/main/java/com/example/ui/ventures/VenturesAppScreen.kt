@@ -2215,7 +2215,7 @@ private fun FarmingOperationsPanel(
                                     modifier = Modifier.weight(1f).height(30.dp),
                                     contentPadding = PaddingValues(horizontal = 6.dp)
                                 ) {
-                                    Text(if (venture.siloCondition >= 0.95f) "Silo Sanitized ✓" else "Maintain Silo (00)", fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                    Text(if (venture.siloCondition >= 0.95f) "Silo Sanitized ✓" else "Maintain Silo (\$500)", fontSize = 9.sp, fontWeight = FontWeight.Bold)
                                 }
 
                                 Button(
