@@ -996,7 +996,8 @@ fun CareerHubPage(
         HubEntry("Record label", "Contracts and royalties", Icons.Default.Domain, WarningColor, "Record Label"),
         HubEntry("Marketplace", "Buy useful assets", Icons.Default.ShoppingCart, PrimaryBrandLight, "Marketplace"),
         HubEntry("Fan mail", "Requests and invitations", Icons.Default.Email, InfoColor, "Mailbox"),
-        HubEntry("Artist identity", "Profile and wardrobe", Icons.Default.Person, PremiumGold, "Shop & Profile")
+        HubEntry("Artist identity", "Profile and wardrobe", Icons.Default.Person, PremiumGold, "Shop & Profile"),
+        HubEntry("Commercial Ventures", "Enterprises, hotels & farms", Icons.Default.BusinessCenter, Color(0xFF6200EA), "Ventures")
     )
     LazyColumn(
         modifier = Modifier
