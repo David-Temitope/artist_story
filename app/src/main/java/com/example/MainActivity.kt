@@ -110,9 +110,16 @@ fun GameApp(viewModel: GameViewModel) {
                 color = MaterialTheme.colorScheme.background
             ) {
                 if (email == null || state == null) {
-                    LoginScreen(
-                        onLogin = { userEmail, artistName ->
-                            viewModel.loginOrCreateAccount(userEmail, artistName)
+                    com.example.ui.lifesim.CharacterCreationScreen(
+                        onStartGame = { userEmail, fName, lName, gender, country, avatar ->
+                            viewModel.createCharacterAccount(
+                                email = userEmail,
+                                firstName = fName,
+                                lastName = lName,
+                                gender = gender,
+                                country = country,
+                                avatarUrl = avatar
+                            )
                         }
                     )
                 } else {
@@ -392,6 +399,7 @@ fun MainGameLayout(
     weeklyReport: String,
     viewModel: GameViewModel
 ) {
+    val context = LocalContext.current
     var selectedTab by remember { mutableStateOf("Dashboard") }
     var isPhoneOpen by remember { mutableStateOf(false) }
     var showEnergyDialog by remember { mutableStateOf(false) }
@@ -405,7 +413,12 @@ fun MainGameLayout(
         "Record Label",
         "Mailbox",
         "Shop & Profile",
-        "Ventures"
+        "Ventures",
+        "House",
+        "School",
+        "Jobs",
+        "Career",
+        "RecordingStudio"
     )
 
     Scaffold(
@@ -413,8 +426,12 @@ fun MainGameLayout(
             val hasUnreads = state.chatConversations.any { it.unreadCount > 0 }
             FloatingActionButton(
                 onClick = {
-                    viewModel.consumeEnergy(1)
-                    isPhoneOpen = true
+                    if (state.energy <= 0) {
+                        Toast.makeText(context, "Phone kept falling off your hands", Toast.LENGTH_SHORT).show()
+                    } else {
+                        viewModel.consumeEnergy(1)
+                        isPhoneOpen = true
+                    }
                 },
                 containerColor = PrimaryBrandColor,
                 contentColor = Color.White,
@@ -602,7 +619,7 @@ fun MainGameLayout(
             ) {
                 val primaryNavItems = listOf(
                     Triple("Dashboard", Icons.Default.Home, "Home"),
-                    Triple("Studio", Icons.Default.MusicNote, "Studio"),
+                    Triple("Family", Icons.Default.People, "Family"),
                     Triple("Tours", Icons.Default.DirectionsBus, "Tours"),
                     Triple("Trading", Icons.Default.TrendingUp, "Market"),
                     Triple("More", Icons.Default.GridView, "More")
@@ -663,21 +680,35 @@ fun MainGameLayout(
                 ) { targetTab ->
                     when (targetTab) {
                         "Dashboard" -> DashboardPage(state, weeklyReport, viewModel, onNavigate = { selectedTab = it })
-                        "Studio" -> {
+                        "Family" -> com.example.ui.lifesim.FamilyScreen(state, viewModel)
+                        "Studio", "RecordingStudio" -> {
                             if (state.isUnderArrest) {
                                 com.example.ui.StateCustodyLockoutScreen(
                                     state = state,
                                     viewModel = viewModel,
                                     featureName = "Recording Studio Facilities",
                                     onOpenScc = {
-                                        viewModel.consumeEnergy(1)
-                                        isPhoneOpen = true
+                                        if (state.energy <= 0) {
+                                            Toast.makeText(context, "Phone kept falling off your hands", Toast.LENGTH_SHORT).show()
+                                        } else {
+                                            viewModel.consumeEnergy(1)
+                                            isPhoneOpen = true
+                                        }
                                     }
                                 )
                             } else {
                                 StudioPage(state, viewModel)
                             }
                         }
+                        "House" -> com.example.ui.lifesim.HouseMarketScreen(state, viewModel, onBack = { selectedTab = "More" })
+                        "School" -> com.example.ui.lifesim.SchoolScreen(state, viewModel, onBack = { selectedTab = "More" })
+                        "Jobs" -> com.example.ui.lifesim.JobMarketScreen(state, viewModel, onBack = { selectedTab = "More" })
+                        "Career" -> com.example.ui.lifesim.CareerScreen(
+                            state = state,
+                            viewModel = viewModel,
+                            onOpenStudio = { selectedTab = "RecordingStudio" },
+                            onBack = { selectedTab = "More" }
+                        )
                         "Tours" -> {
                             if (state.isUnderArrest) {
                                 com.example.ui.StateCustodyLockoutScreen(
@@ -685,8 +716,12 @@ fun MainGameLayout(
                                     viewModel = viewModel,
                                     featureName = "Concert Touring Operations",
                                     onOpenScc = {
-                                        viewModel.consumeEnergy(1)
-                                        isPhoneOpen = true
+                                        if (state.energy <= 0) {
+                                            Toast.makeText(context, "Phone kept falling off your hands", Toast.LENGTH_SHORT).show()
+                                        } else {
+                                            viewModel.consumeEnergy(1)
+                                            isPhoneOpen = true
+                                        }
                                     }
                                 )
                             } else {
@@ -951,7 +986,12 @@ fun CareerHubPage(
 ) {
     data class HubEntry(val title: String, val hint: String, val icon: ImageVector, val color: Color, val route: String)
     val entries = listOf(
-        HubEntry("Gigs", "Earn from live work", Icons.Default.Work, SuccessColor, "Gigs (Jobs)"),
+        HubEntry("House", "Rent & buy residential housing", Icons.Default.Home, Color(0xFF00B894), "House"),
+        HubEntry("School", "University, degrees & CGPA", Icons.Default.School, Color(0xFF6C5CE7), "School"),
+        HubEntry("Job Market", "Professional graduate careers", Icons.Default.Badge, Color(0xFF0984E3), "Jobs"),
+        HubEntry("Career Vocation", "Musician, Actor, Military, etc.", Icons.Default.Star, Color(0xFFFF7675), "Career"),
+        HubEntry("Commercial Ventures", "Hotels, farm silos & shops", Icons.Default.BusinessCenter, Color(0xFF6200EA), "Ventures"),
+        HubEntry("Gigs (Jobs)", "Day work & hustle gigs", Icons.Default.Work, SuccessColor, "Gigs (Jobs)"),
         HubEntry("Skills & people", "Train and network", Icons.Default.Share, CreativePurple, "Social & Practice"),
         HubEntry("Record label", "Contracts and royalties", Icons.Default.Domain, WarningColor, "Record Label"),
         HubEntry("Marketplace", "Buy useful assets", Icons.Default.ShoppingCart, PrimaryBrandLight, "Marketplace"),
@@ -1012,6 +1052,7 @@ fun DashboardPage(
 ) {
     var selectedDashboardTab by remember { mutableStateOf("Overview") }
     var showWeeklyTransitionDialog by remember { mutableStateOf(false) }
+    var showElectionWarningDialog by remember { mutableStateOf(false) }
     val overviewListState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
 
@@ -1045,6 +1086,44 @@ fun DashboardPage(
         }
     }
 
+        if (showElectionWarningDialog) {
+        AlertDialog(
+            onDismissRequest = { showElectionWarningDialog = false },
+            title = {
+                Text("🗳️ ELECTION WEEK WARNING", color = Color(0xFFF59E0B), fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            },
+            text = {
+                Text(
+                    "This is election week and you haven't voted yet, not voting will fine you $8000, are you sure you want to continue?",
+                    color = Color.White,
+                    fontSize = 13.sp
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showElectionWarningDialog = false
+                        viewModel.progressToNextWeek()
+                        CareerDilemmaController.maybeTriggerRandomDilemma(state)
+                        coroutineScope.launch {
+                            overviewListState.animateScrollToItem(0)
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444))
+                ) {
+                    Text("Continue & Incur $8,000 Fine", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                }
+            },
+            dismissButton = {
+                OutlinedButton(
+                    onClick = { showElectionWarningDialog = false }
+                ) {
+                    Text("Go Back", color = Color.White, fontSize = 11.sp)
+                }
+            }
+        )
+    }
+
     if (showWeeklyTransitionDialog) {
         WeeklyAdvanceSummaryDialog(
             currentWeek = state.currentWeek,
@@ -1062,11 +1141,15 @@ fun DashboardPage(
             headline = state.activeGlobalEvent?.let { "Global Trend: ${it.uppercase()}" } ?: weeklyReport.lines().firstOrNull() ?: "Industry executives are monitoring your releases.",
             onConfirmAdvance = {
                 showWeeklyTransitionDialog = false
-                viewModel.progressToNextWeek()
-                // Chance of triggering a living career dilemma upon advancing
-                CareerDilemmaController.maybeTriggerRandomDilemma(state)
-                coroutineScope.launch {
-                    overviewListState.animateScrollToItem(0)
+                val isElectionWeekNow = (state.currentWeek == 14 || state.currentWeek == 38 || state.isElectionWeek)
+                if (isElectionWeekNow && !state.hasVotedInCurrentElection) {
+                    showElectionWarningDialog = true
+                } else {
+                    viewModel.progressToNextWeek()
+                    CareerDilemmaController.maybeTriggerRandomDilemma(state)
+                    coroutineScope.launch {
+                        overviewListState.animateScrollToItem(0)
+                    }
                 }
             },
             onDismiss = {

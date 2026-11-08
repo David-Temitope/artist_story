@@ -110,7 +110,35 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun loginOrCreateAccount(email: String, artistName: String, country: String = "United States") {
+    fun createCharacterAccount(
+        email: String,
+        firstName: String,
+        lastName: String,
+        gender: String,
+        country: String,
+        avatarUrl: String
+    ) {
+        val fullName = "$firstName $lastName".trim()
+        loginOrCreateAccount(
+            email = email,
+            artistName = fullName,
+            country = country,
+            firstName = firstName,
+            lastName = lastName,
+            gender = gender,
+            avatarUrl = avatarUrl
+        )
+    }
+
+    fun loginOrCreateAccount(
+        email: String,
+        artistName: String,
+        country: String = "United States",
+        firstName: String = "Alex",
+        lastName: String = "Vance",
+        gender: String = "Male",
+        avatarUrl: String = ""
+    ) {
         viewModelScope.launch {
             val trimmedEmail = email.trim().lowercase()
             val trimmedName = artistName.trim()
@@ -299,6 +327,20 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 castPosts = initialDefaultCastPosts,
                 email = trimmedEmail,
                 artistName = trimmedName,
+                playerFirstName = firstName,
+                playerLastName = lastName,
+                playerGender = gender,
+                playerAvatarUrl = avatarUrl,
+                playerAge = 18,
+                isLivingWithParents = true,
+                isHomeless = false,
+                familyMembers = LifeSimData.createInitialFamily(lastName, random),
+                availableHouses = LifeSimData.HOUSES,
+                education = PlayerEducation(),
+                actorCareer = ActorCareerState(),
+                cash = 10000.0,
+                energy = 100,
+                maxEnergy = 100,
                 isAdmin = isAdmin,
                 capitalClubMembers = getInitialCapitalClubMembers(),
                 chatConversations = getInitialChatConversations(),
@@ -362,6 +404,12 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 if (loaded.chatConversations.isEmpty()) {
                     loaded = loaded.copy(chatConversations = getInitialChatConversations())
+                }
+                if (loaded.familyMembers.isEmpty()) {
+                    loaded = loaded.copy(familyMembers = LifeSimData.createInitialFamily(loaded.playerLastName))
+                }
+                if (loaded.availableHouses.isEmpty()) {
+                    loaded = loaded.copy(availableHouses = LifeSimData.HOUSES)
                 }
                 if (loaded != existing) {
                     dao.insertGameState(loaded)
@@ -2967,6 +3015,28 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
 
     fun buyHouse(houseId: String) {
         updateState { state ->
+            val prop = LifeSimData.HOUSES.find { it.id == houseId }
+            if (prop != null) {
+                if (state.cash < prop.buyPrice) {
+                    showToast("Insufficient cash to buy ${prop.name}!")
+                    return@updateState state
+                }
+                if (state.ownedHouses.any { it.id == houseId }) {
+                    showToast("You already own this property!")
+                    return@updateState state
+                }
+                val asLegacyHouse = House(id = prop.id, name = prop.name, cost = prop.buyPrice, energyBonus = prop.energyBonus)
+                showToast("Purchased ${prop.name}! Max energy +${prop.energyBonus}.")
+                return@updateState state.copy(
+                    cash = state.cash - prop.buyPrice,
+                    ownedHouses = state.ownedHouses + asLegacyHouse,
+                    isLivingWithParents = false,
+                    isHomeless = false,
+                    currentRentalHouseId = null,
+                    maxEnergy = state.maxEnergy + prop.energyBonus
+                )
+            }
+
             val house = GameData.HOUSES.find { it.id == houseId } ?: return@updateState state
             if (state.cash < house.cost) {
                 showToast("Insufficient cash!")
@@ -2983,8 +3053,299 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             state.copy(
                 cash = state.cash - house.cost,
                 ownedHouses = state.ownedHouses + house,
+                isLivingWithParents = false,
+                isHomeless = false,
+                currentRentalHouseId = null,
                 maxEnergy = newMaxEnergy
             )
+        }
+    }
+
+    fun rentHouse(houseId: String) {
+        updateState { state ->
+            val prop = LifeSimData.HOUSES.find { it.id == houseId } ?: return@updateState state
+            val upfrontRent = prop.weeklyRent + prop.weeklyExpenses
+            if (state.cash < upfrontRent) {
+                showToast("Insufficient cash for deposit & rent (\$${String.format("%,.0f", upfrontRent)})!")
+                return@updateState state
+            }
+            showToast("Rented ${prop.name}! Living independently.")
+            state.copy(
+                cash = state.cash - upfrontRent,
+                currentRentalHouseId = prop.id,
+                isLivingWithParents = false,
+                isHomeless = false
+            )
+        }
+    }
+
+    fun terminateRental() {
+        updateState { state ->
+            showToast("Terminated rental lease.")
+            state.copy(
+                currentRentalHouseId = null,
+                isHomeless = !state.isLivingWithParents && state.ownedHouses.isEmpty()
+            )
+        }
+    }
+
+    fun moveBackWithParents() {
+        updateState { state ->
+            if (state.playerAge >= 22) {
+                showToast("Your parents refused: 'You're ${state.playerAge}! You need to live on your own!'")
+                return@updateState state
+            }
+            showToast("Moved back into your childhood bedroom with your parents.")
+            state.copy(
+                isLivingWithParents = true,
+                currentRentalHouseId = null,
+                isHomeless = false
+            )
+        }
+    }
+
+    fun askFamilyForMoney(memberId: String, requestedAmount: Double) {
+        updateState { state ->
+            val member = state.familyMembers.find { it.id == memberId } ?: return@updateState state
+            val amount = requestedAmount.coerceIn(100.0, 10000.0)
+
+            // Probability of agreement based on relationship score
+            val threshold = when (member.role) {
+                "Mother", "Father" -> 50
+                "Wife", "Husband" -> 65
+                "Girlfriend", "Boyfriend" -> 75
+                else -> 80
+            }
+
+            val agrees = member.relationshipScore >= threshold && member.wealth >= amount
+
+            // Asking for money damages relationship (especially with spouse/partner)
+            val penalty = when (member.role) {
+                "Wife", "Husband" -> 15
+                "Girlfriend", "Boyfriend" -> 20
+                "Mother", "Father" -> 8
+                else -> 10
+            }
+            val newScore = (member.relationshipScore - penalty).coerceIn(0, 100)
+
+            val updatedFamily = state.familyMembers.map {
+                if (it.id == memberId) {
+                    it.copy(
+                        relationshipScore = newScore,
+                        wealth = if (agrees) it.wealth - amount else it.wealth
+                    )
+                } else it
+            }
+
+            if (agrees) {
+                showToast("${member.firstName} agreed and gave you \$${String.format("%,.0f", amount)}! (-$penalty relationship)")
+                state.copy(
+                    cash = state.cash + amount,
+                    familyMembers = updatedFamily
+                )
+            } else {
+                showToast("${member.firstName} refused to give you money! (-$penalty relationship)")
+                state.copy(familyMembers = updatedFamily)
+            }
+        }
+    }
+
+    fun enrollInUniversity(universityId: String, courseName: String) {
+        updateState { state ->
+            val uni = LifeSimData.UNIVERSITIES.find { it.id == universityId } ?: return@updateState state
+            val course = LifeSimData.COURSES.find { it.name == courseName } ?: return@updateState state
+
+            if (state.cash < uni.weeklyFee) {
+                showToast("Insufficient cash for first week tuition (\$${String.format("%,.0f", uni.weeklyFee)})!")
+                return@updateState state
+            }
+
+            val newEducation = PlayerEducation(
+                isEnrolled = true,
+                universityId = uni.id,
+                universityName = uni.name,
+                courseName = course.name,
+                currentWeekInCourse = 1,
+                totalCourseWeeks = course.totalWeeks,
+                cgpa = 0.0,
+                isGraduated = false,
+                hasScholarship = false,
+                parentsPaying = false,
+                weeklyTuition = uni.weeklyFee
+            )
+
+            showToast("Enrolled in ${uni.name} studying ${course.name}!")
+            state.copy(
+                cash = state.cash - uni.weeklyFee,
+                education = newEducation
+            )
+        }
+    }
+
+    fun askParentsForTuition() {
+        updateState { state ->
+            val parents = state.familyMembers.filter { it.role == "Mother" || it.role == "Father" }
+            val avgRel = if (parents.isNotEmpty()) parents.map { it.relationshipScore }.average() else 0.0
+            if (avgRel >= 70) {
+                showToast("Parents agreed! They will cover your weekly university tuition.")
+                state.copy(education = state.education.copy(parentsPaying = true))
+            } else {
+                showToast("Parents declined: 'You need to be responsible and fund your own education.'")
+                state
+            }
+        }
+    }
+
+    fun applyForJob(postingId: String) {
+        updateState { state ->
+            val posting = LifeSimData.JOB_POSTINGS.find { it.id == postingId } ?: return@updateState state
+            val edu = state.education
+
+            if (!edu.isGraduated || edu.courseName != posting.field) {
+                showToast("Rejected: This role requires a degree in ${posting.field}!")
+                return@updateState state
+            }
+
+            if (edu.cgpa < posting.minCgpaRequired) {
+                showToast("Rejected: Minimum CGPA of ${posting.minCgpaRequired} required. (Your CGPA: ${String.format("%.2f", edu.cgpa)})")
+                return@updateState state
+            }
+
+            // Salary scaled by CGPA
+            val gradeFactor = ((edu.cgpa - posting.minCgpaRequired) / (5.0 - posting.minCgpaRequired).coerceAtLeast(0.1)).coerceIn(0.0, 1.0)
+            val salary = posting.weeklySalaryMin + (posting.weeklySalaryMax - posting.weeklySalaryMin) * gradeFactor
+
+            val newJob = PlayerJob(
+                id = posting.id,
+                title = posting.title,
+                field = posting.field,
+                companyName = posting.companyName,
+                weeklySalary = salary,
+                energyCostPercent = posting.energyCostPercent
+            )
+
+            showToast("Hired by ${posting.companyName} as ${posting.title}! Weekly salary: \$${String.format("%,.0f", salary)}")
+            state.copy(currentJob = newJob)
+        }
+    }
+
+    fun quitJob() {
+        updateState { state ->
+            showToast("Resigned from your job.")
+            state.copy(currentJob = null)
+        }
+    }
+
+    fun chooseCareer(careerName: String) {
+        updateState { state ->
+            var updatedActor = state.actorCareer
+            // Theater Arts degree automatically launches player into B-List actor
+            if (careerName == "Actor" && state.education.isGraduated && state.education.courseName == "Theater Arts") {
+                updatedActor = updatedActor.copy(tier = "B-List")
+                showToast("Started Actor career! Your Theater Arts degree launched you directly into B-List status!")
+            } else {
+                showToast("Started career as $careerName!")
+            }
+
+            state.copy(
+                chosenCareer = careerName,
+                actorCareer = updatedActor
+            )
+        }
+    }
+
+    fun applyForMovieRole(contractId: String) {
+        updateState { state ->
+            val actor = state.actorCareer
+            val allContracts = actor.availableAuditions + actor.incomingDirectOffers
+            val contract = allContracts.find { it.id == contractId } ?: return@updateState state
+
+            if (actor.activeContracts.size >= 2) {
+                showToast("You can only have 2 active shoot contracts at a time!")
+                return@updateState state
+            }
+
+            if (state.timeSlots < contract.requiredTimeSlots) {
+                showToast("Requires ${contract.requiredTimeSlots} available time slots!")
+                return@updateState state
+            }
+
+            showToast("Contract signed for '${contract.title}' (${contract.roleType})!")
+            state.copy(
+                actorCareer = actor.copy(
+                    activeContracts = actor.activeContracts + contract,
+                    availableAuditions = actor.availableAuditions.filterNot { it.id == contractId },
+                    incomingDirectOffers = actor.incomingDirectOffers.filterNot { it.id == contractId }
+                )
+            )
+        }
+    }
+
+    fun performActOnMovie(contractId: String) {
+        updateState { state ->
+            val actor = state.actorCareer
+            val contract = actor.activeContracts.find { it.id == contractId } ?: return@updateState state
+
+            if (contract.hasActedThisWeek) {
+                showToast("You already acted your scenes for this week!")
+                return@updateState state
+            }
+
+            if (state.energy < contract.requiredEnergyPercent) {
+                showToast("Requires ${contract.requiredEnergyPercent}% Energy to shoot scenes!")
+                return@updateState state
+            }
+
+            val updatedContracts = actor.activeContracts.map {
+                if (it.id == contractId) it.copy(hasActedThisWeek = true) else it
+            }
+
+            val newAura = (actor.aura + 1).coerceIn(0, 100)
+            showToast("Bravo! Acted scenes with passion! Aura increased to $newAura/100.")
+            state.copy(
+                energy = state.energy - contract.requiredEnergyPercent,
+                actorCareer = actor.copy(
+                    activeContracts = updatedContracts,
+                    aura = newAura
+                )
+            )
+        }
+    }
+
+    // --- REWARDED ADS SIMULATION ENGINE ---
+    fun claimRewardedAdEnergy() {
+        updateState { state ->
+            val boost = 30
+            val newEnergy = (state.energy + boost).coerceAtMost(state.maxEnergy)
+            showToast("⚡ Ad Watched: Gained +30% Instant Energy Boost!")
+            state.copy(energy = newEnergy)
+        }
+    }
+
+    fun claimRewardedAdStudyCram() {
+        updateState { state ->
+            if (state.education.isEnrolled && !state.education.isGraduated) {
+                val newCgpa = (state.education.cgpa + 0.05).coerceAtMost(5.0)
+                showToast("🎓 Ad Watched: Instant Study Cram completed! CGPA +0.05 (Now ${String.format("%.2f", newCgpa)})")
+                state.copy(education = state.education.copy(cgpa = newCgpa))
+            } else {
+                val grant = 2500.0
+                showToast("💵 Ad Watched: Received emergency study/cash grant of \$${String.format("%,.0f", grant)}!")
+                state.copy(cash = state.cash + grant)
+            }
+        }
+    }
+
+    fun claimRewardedAdBoxOfficeMultiplier(contractId: String) {
+        updateState { state ->
+            val actor = state.actorCareer
+            val contract = actor.activeContracts.find { it.id == contractId } ?: return@updateState state
+            val boostedBoxOffice = contract.estimatedBoxOfficeWeekly * 2.0
+            val updated = actor.activeContracts.map {
+                if (it.id == contractId) it.copy(estimatedBoxOfficeWeekly = boostedBoxOffice) else it
+            }
+            showToast("🎬 Ad Watched: Box Office promotional reach DOUBLED for '${contract.title}'!")
+            state.copy(actorCareer = actor.copy(activeContracts = updated))
         }
     }
 
@@ -3615,6 +3976,13 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
 
         updateState { state ->
             val reportBuilder = java.lang.StringBuilder()
+            val isElectionWeekNow = (state.currentWeek == 14 || state.currentWeek == 38 || state.isElectionWeek)
+            var electionFine = 0.0
+            if (isElectionWeekNow && !state.hasVotedInCurrentElection) {
+                electionFine = 8000.0
+                reportBuilder.append("🗳️ ELECTION FINE: You did not vote during Election Week! An $8,000 fine was added to your government tax debt.\n")
+                showToast("🗳️ Incurred $8,000 fine for skipping election voting. Added to tax debt.")
+            }
             var newSavingsBalance = state.savingsBalance
             var updatedActivePhone = state.activePhone
             var updatedOwnedPhones = state.ownedPhones
@@ -4488,7 +4856,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 song.title.contains("The Royal Secretariat", ignoreCase = true)
             }
 
-            val updatedSongs = cleanCatalogSongs.map { originalSong ->
+            var updatedSongs = cleanCatalogSongs.map { originalSong ->
                 val song = if (!originalSong.isReleased) {
                     val weeklyCampaignLift = ReleaseCompetitionHelper.campaignHypeLift(originalSong.preReleaseCampaignPower, originalSong.initialHypeWeeksSet)
                     val grownHype = (originalSong.hype + weeklyCampaignLift).coerceIn(1f, 100f)
@@ -5112,6 +5480,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 initialIndustryRespect = currentIndustryRespect,
                 brandDealPostedEarlierThisWeek = brandDealPostedThisWeek
             )
+            if (workforceResult.updatedSongs.isNotEmpty()) { updatedSongs = workforceResult.updatedSongs }
 
             updatedCash = workforceResult.updatedCash
             newSavingsBalance = workforceResult.newSavingsBalance
@@ -6975,7 +7344,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                         stocks = finalStocks,
                         businessVentures = updatedVentures,
                         cryptos = finalCryptos,
-                        banking = state.banking.copy(savingsBalance = newSavingsBalance),
+                        banking = state.banking.copy(savingsBalance = newSavingsBalance, taxDebt = state.banking.taxDebt + electionFine),
                         wealth = state.wealth.copy(
                             emergencyFundBalance = updatedEmergencyFund,
                             payrollReserve = updatedPayrollReserve,
@@ -7096,7 +7465,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }
 
-            val netWeeklyCash = updatedCash + weeklySalary
+            var netWeeklyCash = updatedCash + weeklySalary
             if (netWeeklyCash < 0.0) {
                 // If it's an optional service offered (e.g. ad campaigns), stop it after that week
                 if (updatedCampaignsList.isNotEmpty()) {
@@ -7106,12 +7475,35 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 reportBuilder.append("🚨 ACCOUNT DEFICIT: Your personal cash balance is in the red at -$${String.format("%,.0f", -netWeeklyCash)}. Statutory taxes and debt obligations continue to accrue.\n")
             }
 
-            _weeklyReport.value = reportBuilder.toString()
+            // Process Life Simulator Weekly Tick
+            val isNewYearNow = (nextWeek == 1 && nextYear > state.currentYear)
+            val lifeSimResult = LifeSimTickHelper.processWeeklyLifeSim(
+                state = state,
+                initialCash = netWeeklyCash,
+                initialEnergy = currentEnergy,
+                initialStress = currentStress,
+                isNewYear = isNewYearNow
+            )
+            lifeSimResult.reportLines.forEach { line ->
+                reportBuilder.append("$line\n")
+            }
+            netWeeklyCash = lifeSimResult.updatedCash
+            currentEnergy = lifeSimResult.updatedEnergy
+            currentStress = lifeSimResult.updatedStress
 
+            _weeklyReport.value = reportBuilder.toString()
 
             val (stateWithEcosystem, finalNPCsWithEcosystem) = simulateWorldEcosystem(state, reportBuilder, updatedMail, finalNPCs)
 
             var finalState = stateWithEcosystem.copy(
+                playerAge = lifeSimResult.updatedAge,
+                isLivingWithParents = lifeSimResult.isLivingWithParents,
+                isHomeless = lifeSimResult.isHomeless,
+                currentRentalHouseId = lifeSimResult.currentRentalHouseId,
+                education = lifeSimResult.updatedEducation,
+                currentJob = lifeSimResult.updatedCurrentJob,
+                actorCareer = lifeSimResult.updatedActorCareer,
+                familyMembers = lifeSimResult.updatedFamilyMembers,
                 capitalClubMembers = updatedCrushMembers,
                 currentWeek = nextWeek,
                 currentYear = nextYear,
@@ -8868,7 +9260,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     // --- MeTube Platform ---
-    fun uploadMeTubeVideo(title: String, type: String, customThumbnail: String? = null, category: String = "Music & Art") {
+    fun uploadMeTubeVideo(title: String, type: String, customThumbnail: String? = null, category: String = "Music & Art", targetSongId: String? = null) {
         updateState { state ->
             if (state.energy < 15) {
                 showToast("Not enough energy to direct and edit a video! Requires 15 energy.")
@@ -8910,7 +9302,32 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             )
 
             val addedRevenue = if (state.meTubeSubscribers >= 1000L) initialViews * 0.0035 else 0.0
-            showToast("Successfully uploaded video in '${category}' category to MeTube!")
+
+            // If a song is linked, calculate boost with decay based on weeks since release
+            var updatedSongs = state.songs
+            if (targetSongId != null) {
+                val targetSong = state.songs.find { it.id == targetSongId }
+                if (targetSong != null) {
+                    val weeksElapsed = ((state.currentYear - targetSong.yearCreated) * 52 + (state.currentWeek - targetSong.weekCreated)).coerceAtLeast(0)
+                    // The more weeks elapsed after release, the less effect the video has
+                    val decayMultiplier = (1.0 - (weeksElapsed * 0.04)).coerceIn(0.12, 1.0)
+                    val streamBoost = (initialViews * 0.75 * decayMultiplier).toLong().coerceAtLeast(50L)
+                    val hypeBoost = (15f * decayMultiplier.toFloat()).coerceIn(2f, 20f)
+                    updatedSongs = state.songs.map { s ->
+                        if (s.id == targetSongId) {
+                            s.copy(
+                                totalStreams = s.totalStreams + streamBoost,
+                                hype = (s.hype + hypeBoost).coerceAtMost(100f)
+                            )
+                        } else s
+                    }
+                    showToast("Uploaded music video for '${targetSong.title}'! +${String.format("%,d", streamBoost)} streams (boost efficiency: ${(decayMultiplier * 100).toInt()}%).")
+                } else {
+                    showToast("Successfully uploaded video in '${category}' category to MeTube!")
+                }
+            } else {
+                showToast("Successfully uploaded video in '${category}' category to MeTube!")
+            }
 
             val updatedSpiritualJournal = state.spiritualJournal.filter { !it.startsWith("latest_metube_category_") && !it.startsWith("latest_cast_category_") }.toMutableList()
             updatedSpiritualJournal.add("latest_metube_category_$category")
@@ -8919,6 +9336,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             state.copy(
                 energy = state.energy - (if (state.activePhone == "Xiaomax") 8 else 15),
                 cash = state.cash - cost,
+                songs = updatedSongs,
                 meTubeVideos = state.meTubeVideos + newVideo,
                 signedLabelDeliveredMeTubeVideos = if (state.signedLabelId != null) state.signedLabelDeliveredMeTubeVideos + 1 else state.signedLabelDeliveredMeTubeVideos,
                 meTubeSubscribers = state.meTubeSubscribers + Random.nextInt(50, 300),
@@ -12807,7 +13225,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         val currentTrustworthiness: Float,
         val currentBusinessReputation: Float,
         val currentReliability: Float,
-        val employeesUnpaid: Boolean
+        val employeesUnpaid: Boolean,
+        val updatedSongs: List<Song> = emptyList()
     )
 
     private fun simulateEmployeeWorkforce(
@@ -12836,6 +13255,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         initialIndustryRespect: Float,
         brandDealPostedEarlierThisWeek: Boolean
     ): WorkforceSimulationResult {
+        var mutSongs = state.songs.toMutableList()
         var mutCash = initialCash
         var mutSavings = initialSavings
         var mutReserve = state.wealth.payrollReserve
@@ -13111,15 +13531,56 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 reportBuilder.append("📱 Social Media Manager: Published the required sponsored Cast post for ${state.activeBrandDealName}.\n")
             }
 
-            val vidType = if (state.smmPostCategory.contains("Music")) "MUSIC_VIDEO" else "VLOG"
+            val hasReleasedSongs = state.songs.isNotEmpty()
+            val effectiveCategory = if (state.smmPostCategory.contains("Music") && !hasReleasedSongs) {
+                // If player hasn't released any song yet, SMM posts another category
+                listOf("Vlog & Lifestyle", "Studio Behind The Scenes", "Gaming & Entertainment").random()
+            } else {
+                state.smmPostCategory
+            }
+
+            val isMusicVideo = effectiveCategory.contains("Music") && hasReleasedSongs
+            val vidType = if (isMusicVideo) "MUSIC_VIDEO" else "VLOG"
+
+            // SMM selects the player's most recent song if making a music video
+            val recentSong = if (isMusicVideo) state.songs.maxByOrNull { it.yearCreated * 52 + it.weekCreated } else null
+
+            val videoTitle = if (recentSong != null) {
+                "${state.artistName} - ${recentSong.title} (Official Visualizer)"
+            } else {
+                "${state.artistName} - $effectiveCategory Update"
+            }
+
+            val autoVidViews = (state.followers * 0.1).toLong().coerceAtLeast(100)
+
+            // Stream effect with decay: the more weeks after song release, the less effect
+            if (recentSong != null) {
+                val weeksElapsed = ((state.currentYear - recentSong.yearCreated) * 52 + (state.currentWeek - recentSong.weekCreated)).coerceAtLeast(0)
+                val decayMultiplier = (1.0 - (weeksElapsed * 0.04)).coerceIn(0.10, 1.0)
+                val songStreamsBoost = (autoVidViews * 0.70 * decayMultiplier).toLong().coerceAtLeast(20L)
+                val songHypeBoost = (10f * decayMultiplier.toFloat()).coerceIn(1f, 15f)
+
+                // Apply to recentSong
+                mutSongs = mutSongs.map { s ->
+                    if (s.id == recentSong.id) {
+                        s.copy(
+                            totalStreams = s.totalStreams + songStreamsBoost,
+                            hype = (s.hype + songHypeBoost).coerceAtMost(100f)
+                        )
+                    } else s
+                }.toMutableList()
+                reportBuilder.append("📱 Social Media Manager: Promoted '${recentSong.title}' with a music visualizer (+${String.format("%,d", songStreamsBoost)} streams, ${(decayMultiplier * 100).toInt()}% efficiency).\n")
+            }
+
             val autoVid = MeTubeVideo(
                 id = "vid_smm_" + java.util.UUID.randomUUID().toString().take(6),
-                title = "${state.artistName} - ${state.smmPostCategory} Update",
+                title = videoTitle,
                 type = vidType,
-                views = (state.followers * 0.1).toLong().coerceAtLeast(100),
+                views = autoVidViews,
                 likes = (state.followers * 0.02).toLong().coerceAtLeast(10),
                 weekPublished = state.currentWeek,
-                yearPublished = state.currentYear
+                yearPublished = state.currentYear,
+                thumbnailId = recentSong?.coverArt ?: "ic_video"
             )
             mutVideos.add(0, autoVid)
             reportBuilder.append("📱 Social Media Manager: Auto-posted to Cast & MeTube (${state.smmPostCategory}).\n")
@@ -13175,7 +13636,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             currentTrustworthiness = mutTrust,
             currentBusinessReputation = mutRep,
             currentReliability = mutRel,
-            employeesUnpaid = false
+            employeesUnpaid = false,
+            updatedSongs = mutSongs
         )
     }
 

@@ -3463,7 +3463,7 @@ object VentureSimulationHelper {
                 siloAutoSell = venture.siloAutoSell
             ).copyHotel(
                 hotelRoomCount = if (venture.type == "Hotel" || venture.type == "Hotel Chain") updatedHotelRooms.count { it.isUnlocked } else venture.hotelRoomCount,
-                hotelMaxRoomCapacity = if (venture.type == "Hotel" || venture.type == "Hotel Chain") 20 else venture.hotelMaxRoomCapacity,
+                hotelMaxRoomCapacity = venture.hotelMaxRoomCapacity,
                 hotelNightlyRate = if (venture.type == "Hotel" || venture.type == "Hotel Chain") venture.hotelNightlyRate else venture.hotelNightlyRate,
                 hotelOccupancyRate = if (venture.type == "Hotel" || venture.type == "Hotel Chain") updatedHotelOccupancy else venture.hotelOccupancyRate,
                 hotelCondition = if (venture.type == "Hotel" || venture.type == "Hotel Chain") updatedHotelCondition else venture.hotelCondition,
