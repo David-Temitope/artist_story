@@ -110,9 +110,16 @@ fun GameApp(viewModel: GameViewModel) {
                 color = MaterialTheme.colorScheme.background
             ) {
                 if (email == null || state == null) {
-                    LoginScreen(
-                        onLogin = { userEmail, artistName ->
-                            viewModel.loginOrCreateAccount(userEmail, artistName)
+                    com.example.ui.lifesim.CharacterCreationScreen(
+                        onStartGame = { userEmail, fName, lName, gender, country, avatar ->
+                            viewModel.createCharacterAccount(
+                                email = userEmail,
+                                firstName = fName,
+                                lastName = lName,
+                                gender = gender,
+                                country = country,
+                                avatarUrl = avatar
+                            )
                         }
                     )
                 } else {
@@ -406,7 +413,12 @@ fun MainGameLayout(
         "Record Label",
         "Mailbox",
         "Shop & Profile",
-        "Ventures"
+        "Ventures",
+        "House",
+        "School",
+        "Jobs",
+        "Career",
+        "RecordingStudio"
     )
 
     Scaffold(
@@ -607,7 +619,7 @@ fun MainGameLayout(
             ) {
                 val primaryNavItems = listOf(
                     Triple("Dashboard", Icons.Default.Home, "Home"),
-                    Triple("Studio", Icons.Default.MusicNote, "Studio"),
+                    Triple("Family", Icons.Default.People, "Family"),
                     Triple("Tours", Icons.Default.DirectionsBus, "Tours"),
                     Triple("Trading", Icons.Default.TrendingUp, "Market"),
                     Triple("More", Icons.Default.GridView, "More")
@@ -668,7 +680,8 @@ fun MainGameLayout(
                 ) { targetTab ->
                     when (targetTab) {
                         "Dashboard" -> DashboardPage(state, weeklyReport, viewModel, onNavigate = { selectedTab = it })
-                        "Studio" -> {
+                        "Family" -> com.example.ui.lifesim.FamilyScreen(state, viewModel)
+                        "Studio", "RecordingStudio" -> {
                             if (state.isUnderArrest) {
                                 com.example.ui.StateCustodyLockoutScreen(
                                     state = state,
@@ -687,6 +700,15 @@ fun MainGameLayout(
                                 StudioPage(state, viewModel)
                             }
                         }
+                        "House" -> com.example.ui.lifesim.HouseMarketScreen(state, viewModel, onBack = { selectedTab = "More" })
+                        "School" -> com.example.ui.lifesim.SchoolScreen(state, viewModel, onBack = { selectedTab = "More" })
+                        "Jobs" -> com.example.ui.lifesim.JobMarketScreen(state, viewModel, onBack = { selectedTab = "More" })
+                        "Career" -> com.example.ui.lifesim.CareerScreen(
+                            state = state,
+                            viewModel = viewModel,
+                            onOpenStudio = { selectedTab = "RecordingStudio" },
+                            onBack = { selectedTab = "More" }
+                        )
                         "Tours" -> {
                             if (state.isUnderArrest) {
                                 com.example.ui.StateCustodyLockoutScreen(
@@ -964,13 +986,17 @@ fun CareerHubPage(
 ) {
     data class HubEntry(val title: String, val hint: String, val icon: ImageVector, val color: Color, val route: String)
     val entries = listOf(
-        HubEntry("Gigs", "Earn from live work", Icons.Default.Work, SuccessColor, "Gigs (Jobs)"),
+        HubEntry("House", "Rent & buy residential housing", Icons.Default.Home, Color(0xFF00B894), "House"),
+        HubEntry("School", "University, degrees & CGPA", Icons.Default.School, Color(0xFF6C5CE7), "School"),
+        HubEntry("Job Market", "Professional graduate careers", Icons.Default.Badge, Color(0xFF0984E3), "Jobs"),
+        HubEntry("Career Vocation", "Musician, Actor, Military, etc.", Icons.Default.Star, Color(0xFFFF7675), "Career"),
+        HubEntry("Commercial Ventures", "Hotels, farm silos & shops", Icons.Default.BusinessCenter, Color(0xFF6200EA), "Ventures"),
+        HubEntry("Gigs (Jobs)", "Day work & hustle gigs", Icons.Default.Work, SuccessColor, "Gigs (Jobs)"),
         HubEntry("Skills & people", "Train and network", Icons.Default.Share, CreativePurple, "Social & Practice"),
         HubEntry("Record label", "Contracts and royalties", Icons.Default.Domain, WarningColor, "Record Label"),
         HubEntry("Marketplace", "Buy useful assets", Icons.Default.ShoppingCart, PrimaryBrandLight, "Marketplace"),
         HubEntry("Fan mail", "Requests and invitations", Icons.Default.Email, InfoColor, "Mailbox"),
-        HubEntry("Artist identity", "Profile and wardrobe", Icons.Default.Person, PremiumGold, "Shop & Profile"),
-        HubEntry("Commercial Ventures", "Enterprises, hotels & farms", Icons.Default.BusinessCenter, Color(0xFF6200EA), "Ventures")
+        HubEntry("Artist identity", "Profile and wardrobe", Icons.Default.Person, PremiumGold, "Shop & Profile")
     )
     LazyColumn(
         modifier = Modifier

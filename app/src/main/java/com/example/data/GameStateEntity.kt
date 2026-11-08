@@ -287,6 +287,20 @@ data class GameStateEntity(
     val touristIndex: Int = 100, // percentage indicator of tourist influx
     val isElectionSeason: Boolean = false,
     val residenceCountry: String = "United States",
+    val playerFirstName: String = "Alex",
+    val playerLastName: String = "Vance",
+    val playerGender: String = "Male",
+    val playerAvatarUrl: String = "",
+    val playerAge: Int = 18,
+    val isLivingWithParents: Boolean = true,
+    val isHomeless: Boolean = false,
+    val chosenCareer: String = "None", // "None", "Musician", "Actor", "Content Creator", "Police", "Army"
+    val familyMembers: List<FamilyMember> = emptyList(),
+    val availableHouses: List<HouseProperty> = emptyList(),
+    val currentRentalHouseId: String? = null,
+    val education: PlayerEducation = PlayerEducation(),
+    val currentJob: PlayerJob? = null,
+    val actorCareer: ActorCareerState = ActorCareerState(),
     val hasGlobalStreamingLicense: Boolean = false,
     val accountantAutoInvestPercent: Float = 0.10f,
     val accountantAutoSellProfitMargin: Float = 0.25f,
@@ -861,4 +875,59 @@ class Converters {
         if (value.isNullOrBlank() || value == "null") emptyList()
         else moshi.adapter<List<BankLoanContract>>(Types.newParameterizedType(List::class.java, BankLoanContract::class.java)).fromJson(value) ?: emptyList()
     } catch (e: Throwable) { emptyList() }
+
+    @TypeConverter
+    fun fromFamilyMemberList(value: List<FamilyMember>?): String = try {
+        moshi.adapter<List<FamilyMember>>(Types.newParameterizedType(List::class.java, FamilyMember::class.java)).toJson(value ?: emptyList())
+    } catch (e: Throwable) { "[]" }
+
+    @TypeConverter
+    fun toFamilyMemberList(value: String?): List<FamilyMember> = try {
+        if (value.isNullOrBlank() || value == "null") emptyList()
+        else moshi.adapter<List<FamilyMember>>(Types.newParameterizedType(List::class.java, FamilyMember::class.java)).fromJson(value) ?: emptyList()
+    } catch (e: Throwable) { emptyList() }
+
+    @TypeConverter
+    fun fromHousePropertyList(value: List<HouseProperty>?): String = try {
+        moshi.adapter<List<HouseProperty>>(Types.newParameterizedType(List::class.java, HouseProperty::class.java)).toJson(value ?: emptyList())
+    } catch (e: Throwable) { "[]" }
+
+    @TypeConverter
+    fun toHousePropertyList(value: String?): List<HouseProperty> = try {
+        if (value.isNullOrBlank() || value == "null") emptyList()
+        else moshi.adapter<List<HouseProperty>>(Types.newParameterizedType(List::class.java, HouseProperty::class.java)).fromJson(value) ?: emptyList()
+    } catch (e: Throwable) { emptyList() }
+
+    @TypeConverter
+    fun fromPlayerEducation(value: PlayerEducation?): String = try {
+        moshi.adapter(PlayerEducation::class.java).toJson(value ?: PlayerEducation())
+    } catch (e: Throwable) { "{}" }
+
+    @TypeConverter
+    fun toPlayerEducation(value: String?): PlayerEducation = try {
+        if (value.isNullOrBlank() || value == "null") PlayerEducation()
+        else moshi.adapter(PlayerEducation::class.java).fromJson(value) ?: PlayerEducation()
+    } catch (e: Throwable) { PlayerEducation() }
+
+    @TypeConverter
+    fun fromPlayerJob(value: PlayerJob?): String = try {
+        if (value == null) "null" else moshi.adapter(PlayerJob::class.java).toJson(value)
+    } catch (e: Throwable) { "null" }
+
+    @TypeConverter
+    fun toPlayerJob(value: String?): PlayerJob? = try {
+        if (value.isNullOrBlank() || value == "null") null
+        else moshi.adapter(PlayerJob::class.java).fromJson(value)
+    } catch (e: Throwable) { null }
+
+    @TypeConverter
+    fun fromActorCareerState(value: ActorCareerState?): String = try {
+        moshi.adapter(ActorCareerState::class.java).toJson(value ?: ActorCareerState())
+    } catch (e: Throwable) { "{}" }
+
+    @TypeConverter
+    fun toActorCareerState(value: String?): ActorCareerState = try {
+        if (value.isNullOrBlank() || value == "null") ActorCareerState()
+        else moshi.adapter(ActorCareerState::class.java).fromJson(value) ?: ActorCareerState()
+    } catch (e: Throwable) { ActorCareerState() }
 }

@@ -24,7 +24,7 @@ interface GameStateDao {
     suspend fun deleteGameState(email: String)
 }
 
-@Database(entities = [GameStateEntity::class], version = 22, exportSchema = false)
+@Database(entities = [GameStateEntity::class], version = 23, exportSchema = false)
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun gameStateDao(): GameStateDao
@@ -43,7 +43,21 @@ abstract class AppDatabase : RoomDatabase() {
                 "restAndHobbyUsedThisWeek" to "INTEGER NOT NULL DEFAULT 0",
                 "blockedNpcIds" to "TEXT NOT NULL DEFAULT '[]'",
                 "npcSpamCounts" to "TEXT NOT NULL DEFAULT '{}'",
-                "writtenLyrics" to "TEXT NOT NULL DEFAULT '[]'"
+                "writtenLyrics" to "TEXT NOT NULL DEFAULT '[]'",
+                "playerFirstName" to "TEXT NOT NULL DEFAULT 'Alex'",
+                "playerLastName" to "TEXT NOT NULL DEFAULT 'Vance'",
+                "playerGender" to "TEXT NOT NULL DEFAULT 'Male'",
+                "playerAvatarUrl" to "TEXT NOT NULL DEFAULT ''",
+                "playerAge" to "INTEGER NOT NULL DEFAULT 18",
+                "isLivingWithParents" to "INTEGER NOT NULL DEFAULT 1",
+                "isHomeless" to "INTEGER NOT NULL DEFAULT 0",
+                "chosenCareer" to "TEXT NOT NULL DEFAULT 'None'",
+                "familyMembers" to "TEXT NOT NULL DEFAULT '[]'",
+                "availableHouses" to "TEXT NOT NULL DEFAULT '[]'",
+                "currentRentalHouseId" to "TEXT DEFAULT NULL",
+                "education" to "TEXT NOT NULL DEFAULT '{}'",
+                "currentJob" to "TEXT DEFAULT NULL",
+                "actorCareer" to "TEXT NOT NULL DEFAULT '{}'"
             )
             val existing = mutableSetOf<String>()
             db.query("PRAGMA table_info(game_states)").use { cursor ->
@@ -70,6 +84,12 @@ abstract class AppDatabase : RoomDatabase() {
             }
             columns.forEach { (name, definition) ->
                 if (name !in existing) db.execSQL("ALTER TABLE game_states ADD COLUMN `$name` $definition")
+            }
+        }
+
+        val MIGRATION_22_23 = object : Migration(22, 23) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                ensureCurrentColumns(db)
             }
         }
 
@@ -128,6 +148,7 @@ abstract class AppDatabase : RoomDatabase() {
                 "artist_story_database"
             )
             builder.addMigrations(
+                MIGRATION_22_23,
                 MIGRATION_21_22,
                 MIGRATION_20_21,
                 MIGRATION_19_21,
